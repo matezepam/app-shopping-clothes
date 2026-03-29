@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: eagle
+      POSTGRES_PASSWORD: eagle
+      POSTGRES_DB: eagle_shop
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgres://eagle:eagle@db:5432/eagle_shop
+      JWT_SECRET: change-me-in-production
+      CORS_ORIGIN: http://localhost:5173
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

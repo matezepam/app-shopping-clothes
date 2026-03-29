@@ -88,6 +88,3 @@ cd ../backend && npm run build && npm start
 3. **Roles:** más granular (editor, soporte).
 4. **Informes:** export CSV, filtros por fechas.
 
-## Licencia
-
-Ver `LICENSE`.
