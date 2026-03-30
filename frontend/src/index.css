@@ -2,11 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: 0.85 0.18 90;
+  --secondary: 0.45 0.2 250;
+  --accent: 0.55 0.22 25;
+  --background: 0.98 0.005 90;
+  --foreground: 0.15 0.02 250;
+  --muted: 0.95 0.01 90;
+  --muted-foreground: 0.45 0.03 250;
+}
+
 @layer base {
   html {
     @apply scroll-smooth;
   }
+
   body {
-    @apply bg-eagle-night text-eagle-foam font-body min-h-screen;
+    @apply bg-background text-foreground font-sans min-h-screen;
   }
 }
