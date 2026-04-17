@@ -1,9 +1,5 @@
 # (React + TS + Tailwind v3 + Express + Postgres + Docker)
 
-Tienda moderna para turistas: categorías (hombre / mujer / recuerdos), conceptos (Galápagos, Quito, Otavalo…), **historia por producto** (i18n), **carrito**, **registro / login**, **historial de pedidos**, **devoluciones**, panel **admin con estadísticas** (top productos, ingresos, gráfico simple, cola de devoluciones).
-
-## Stack
-
 | Capa | Tecnología |
 |------|------------|
 | Frontend | React 19, TypeScript, Vite 8, **Tailwind CSS v3**, react-router-dom, i18next |
