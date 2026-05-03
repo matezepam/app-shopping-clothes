@@ -11,7 +11,7 @@
 
 ## Requisitos
 
-- Node 22+ (recomendado)
+- Node 22+ 
 - Docker Desktop (para Postgres + API)
 
 ## Imágenes (plantillas)
