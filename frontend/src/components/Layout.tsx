@@ -9,10 +9,10 @@ import { formatMoney, fromUsd } from "../lib/currency";
 
 function navClass(isActive: boolean) {
   return [
-    "rounded-xl px-3 py-2 text-sm font-medium transition",
+    "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
     isActive
-      ? "bg-eagle-red/15 text-eagle-red"
-      : "text-eagle-sand hover:bg-eagle-mist/70 hover:text-eagle-foam",
+      ? "bg-white text-[#0a0f1a]"
+      : "text-white/70 hover:bg-white/10 hover:text-white",
   ].join(" ");
 }
 
@@ -26,9 +26,15 @@ export function Layout() {
     catalog,
     currency,
     addToCart,
+    removeFromCart,
+    toggleWishlist,
   } = useStore();
   const [userOpen, setUserOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const userRef = useRef<HTMLDivElement | null>(null);
+  const wishlistRef = useRef<HTMLDivElement | null>(null);
+  const cartRef = useRef<HTMLDivElement | null>(null);
   const cartCount = cart.reduce((a, i) => a + i.quantity, 0);
   const wishlistCount = wishlistProductIds.length;
   const cartPreview = useMemo(
@@ -53,24 +59,35 @@ export function Layout() {
     () => catalog.filter((p) => wishlistProductIds.includes(p.id)),
     [catalog, wishlistProductIds],
   );
+  const cartTotal = useMemo(
+    () => cartPreview.reduce((sum, line) => sum + line.price * line.quantity, 0),
+    [cartPreview],
+  );
+  const wishlistTotal = useMemo(
+    () => wishlistPreview.reduce((sum, product) => sum + product.priceUsd, 0),
+    [wishlistPreview],
+  );
 
   useEffect(() => {
     function onDown(ev: MouseEvent) {
-      if (!userRef.current?.contains(ev.target as Node)) setUserOpen(false);
+      const target = ev.target as Node;
+      if (!userRef.current?.contains(target)) setUserOpen(false);
+      if (!wishlistRef.current?.contains(target)) setWishlistOpen(false);
+      if (!cartRef.current?.contains(target)) setCartOpen(false);
     }
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-eagle-night bg-eagle-mesh">
-      <header className="sticky top-0 z-40 border-b border-eagle-mist/70 bg-eagle-night/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0f1a]/95 text-white shadow-lg shadow-black/10 backdrop-blur-md">
+        <div className="container mx-auto flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <Link to="/" className="shrink-0">
             <EagleLogo />
           </Link>
 
-          <nav className="flex flex-wrap items-center gap-1">
+          <nav className="flex flex-wrap items-center gap-2 lg:justify-center">
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
               {t("nav.home")}
             </NavLink>
@@ -80,69 +97,108 @@ export function Layout() {
           </nav>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <div className="group relative pb-2">
+            <div className="relative" ref={wishlistRef}>
               <button
                 type="button"
-                className="relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-eagle-sand hover:bg-eagle-mist/70 hover:text-eagle-red"
+                onClick={() => {
+                  setWishlistOpen((open) => !open);
+                  setCartOpen(false);
+                  setUserOpen(false);
+                }}
+                aria-expanded={wishlistOpen}
+                className="relative inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white/70 transition-colors hover:bg-secondary hover:text-white"
               >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill={wishlistCount > 0 ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-              {wishlistCount > 0 ? (
-                <span className="rounded-full bg-eagle-red px-1.5 text-[11px] font-bold text-eagle-night">
-                  {wishlistCount}
-                </span>
-              ) : null}
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill={wishlistCount > 0 ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                {wishlistCount > 0 ? (
+                  <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold text-[#0a0f1a]">
+                    {wishlistCount}
+                  </span>
+                ) : null}
               </button>
-              <div className="pointer-events-none absolute right-0 top-full z-50 w-80 rounded-2xl border border-eagle-mist/70 bg-eagle-deep/95 p-3 shadow-xl opacity-0 translate-y-1 transition group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 group-hover:animate-fade-up">
-                <p className="px-1 py-1 text-xs uppercase tracking-wider text-eagle-sand/60">
+              <div className="absolute right-0 top-full h-3 w-80" />
+              <div
+                className={[
+                  "absolute right-0 top-[calc(100%+0.5rem)] z-50 w-80 rounded-2xl border border-white/10 bg-[#0a0f1a]/95 p-3 text-white shadow-xl shadow-black/25 backdrop-blur-md transition",
+                  wishlistOpen
+                    ? "pointer-events-auto translate-y-0 opacity-100 animate-fade-up"
+                    : "pointer-events-none translate-y-1 opacity-0",
+                ].join(" ")}
+              >
+                <p className="px-1 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
                   {t("nav.wishlist")}
                 </p>
                 {wishlistPreview.length === 0 ? (
-                  <p className="px-1 py-3 text-sm text-eagle-sand/70">
+                  <p className="px-1 py-3 text-sm text-white/70">
                     {t("wishlist.empty")}
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {wishlistPreview.slice(0, 4).map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center gap-2 rounded-xl bg-eagle-night/35 p-2"
-                      >
-                        <img src={p.image} alt="" className="h-11 w-11 rounded-lg object-cover" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm text-eagle-foam">{p.name}</p>
-                          <p className="text-xs text-eagle-sand/70">
-                            {formatMoney(fromUsd(p.priceUsd, currency), currency)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => addToCart(p.id)}
-                          className="rounded-lg bg-eagle-red px-2 py-1 text-xs font-semibold text-eagle-foam"
+                  <>
+                    <div className="space-y-2">
+                      {wishlistPreview.slice(0, 4).map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-2 rounded-xl bg-white/10 p-2"
                         >
-                          + Cart
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                          <img src={p.image} alt="" className="h-11 w-11 rounded-lg object-cover" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm text-white">{p.name}</p>
+                            <p className="text-xs text-white/60">
+                              {formatMoney(fromUsd(p.priceUsd, currency), currency)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => addToCart(p.id)}
+                            className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-[#0a0f1a] transition-colors hover:bg-accent hover:text-white"
+                          >
+                            + Cart
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleWishlist(p.id)}
+                            aria-label="Eliminar de wishlist"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors hover:bg-accent hover:text-white"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                              <path d="M18 6 6 18" />
+                              <path d="m6 6 12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-white/10 px-1 pt-3 text-sm">
+                      <span className="font-semibold text-white/70">Total</span>
+                      <span className="font-display text-base font-bold text-primary">
+                        {formatMoney(fromUsd(wishlistTotal, currency), currency)}
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
 
-            <div className="group relative pb-2">
+            <div className="relative" ref={cartRef}>
               <button
                 type="button"
-                className="relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-eagle-sand hover:bg-eagle-mist/70 hover:text-eagle-red"
+                onClick={() => {
+                  setCartOpen((open) => !open);
+                  setWishlistOpen(false);
+                  setUserOpen(false);
+                }}
+                aria-expanded={cartOpen}
+                className="relative inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white/70 transition-colors hover:bg-secondary hover:text-white"
                 aria-label={t("nav.cart")}
               >
                 <svg
@@ -161,17 +217,25 @@ export function Layout() {
                   <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                 </svg>
                 {cartCount > 0 ? (
-                  <span className="rounded-full bg-eagle-red px-1.5 text-[11px] font-bold text-eagle-night">
+                  <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold text-[#0a0f1a]">
                     {cartCount}
                   </span>
                 ) : null}
               </button>
-              <div className="pointer-events-none absolute right-0 top-full z-50 w-80 rounded-2xl border border-eagle-mist/70 bg-eagle-deep/95 p-3 shadow-xl opacity-0 translate-y-1 transition group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 group-hover:animate-fade-up">
-                <p className="px-1 py-1 text-xs uppercase tracking-wider text-eagle-sand/60">
+              <div className="absolute right-0 top-full h-3 w-80" />
+              <div
+                className={[
+                  "absolute right-0 top-[calc(100%+0.5rem)] z-50 w-80 rounded-2xl border border-white/10 bg-[#0a0f1a]/95 p-3 text-white shadow-xl shadow-black/25 backdrop-blur-md transition",
+                  cartOpen
+                    ? "pointer-events-auto translate-y-0 opacity-100 animate-fade-up"
+                    : "pointer-events-none translate-y-1 opacity-0",
+                ].join(" ")}
+              >
+                <p className="px-1 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
                   {t("nav.cart")}
                 </p>
                 {cartPreview.length === 0 ? (
-                  <p className="px-1 py-3 text-sm text-eagle-sand/70">
+                  <p className="px-1 py-3 text-sm text-white/70">
                     {t("cart.empty")}
                   </p>
                 ) : (
@@ -180,21 +244,39 @@ export function Layout() {
                       {cartPreview.slice(0, 4).map((line) => (
                         <div
                           key={line.productId}
-                          className="flex items-center gap-2 rounded-xl bg-eagle-night/35 p-2"
+                          className="flex items-center gap-2 rounded-xl bg-white/10 p-2"
                         >
                           <img src={line.image} alt="" className="h-11 w-11 rounded-lg object-cover" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm text-eagle-foam">{line.name}</p>
-                            <p className="text-xs text-eagle-sand/70">
+                            <p className="truncate text-sm text-white">{line.name}</p>
+                            <p className="text-xs text-white/60">
                               {line.quantity} x {formatMoney(fromUsd(line.price, currency), currency)}
                             </p>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFromCart(line.productId)}
+                            aria-label="Eliminar del carrito"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors hover:bg-accent hover:text-white"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                              <path d="M18 6 6 18" />
+                              <path d="m6 6 12 12" />
+                            </svg>
+                          </button>
                         </div>
                       ))}
                     </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-white/10 px-1 pt-3 text-sm">
+                      <span className="font-semibold text-white/70">Total</span>
+                      <span className="font-display text-base font-bold text-primary">
+                        {formatMoney(fromUsd(cartTotal, currency), currency)}
+                      </span>
+                    </div>
                     <Link
                       to="/cart"
-                      className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-eagle-red px-3 py-2 text-sm font-semibold text-eagle-foam hover:bg-eagle-gold hover:text-eagle-night"
+                      onClick={() => setCartOpen(false)}
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-primary px-3 py-2 text-sm font-bold text-[#0a0f1a] transition-colors hover:bg-accent hover:text-white"
                     >
                       {t("cart.checkout")}
                     </Link>
@@ -206,51 +288,54 @@ export function Layout() {
             <div className="relative" ref={userRef}>
               <button
                 type="button"
-                onClick={() => setUserOpen((s) => !s)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-eagle-mist/70 bg-eagle-deep text-eagle-sand transition hover:border-eagle-red/60 hover:text-eagle-red"
+                onClick={() => {
+                  setUserOpen((s) => !s);
+                  setWishlistOpen(false);
+                  setCartOpen(false);
+                }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-secondary hover:text-white"
               >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-eagle-sand/80"
-                      aria-hidden
-                    >
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               </button>
               {userOpen ? (
-                <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-eagle-mist/70 bg-eagle-deep/95 p-2 shadow-xl animate-fade-up">
+                <div className="absolute right-0 top-14 z-50 w-56 rounded-2xl border border-white/10 bg-[#0a0f1a]/95 p-2 text-white shadow-xl shadow-black/25 backdrop-blur-md animate-fade-up">
                   {!user ? (
                     <>
                       <Link
                         to="/login?mode=login"
                         onClick={() => setUserOpen(false)}
-                        className="block rounded-xl px-3 py-2 text-sm text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam"
+                        className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         {t("nav.login")}
                       </Link>
                       <Link
                         to="/login?mode=register"
                         onClick={() => setUserOpen(false)}
-                        className="block rounded-xl px-3 py-2 text-sm text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam"
+                        className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         {t("auth.register")}
                       </Link>
                     </>
                   ) : (
                     <>
-                      <p className="px-3 py-2 text-xs text-eagle-sand/60">{user.name}</p>
-                      <NavLink to="/history" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam">{t("nav.history")}</NavLink>
-                      <NavLink to="/returns" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam">{t("nav.returns")}</NavLink>
+                      <p className="px-3 py-2 text-xs font-semibold text-primary">{user.name}</p>
+                      <NavLink to="/history" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">{t("nav.history")}</NavLink>
+                      <NavLink to="/returns" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">{t("nav.returns")}</NavLink>
                       {user.role === "admin" ? (
-                        <NavLink to="/admin" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam">{t("nav.admin")}</NavLink>
+                        <NavLink to="/admin" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">{t("nav.admin")}</NavLink>
                       ) : null}
                       <button
                         type="button"
@@ -258,7 +343,7 @@ export function Layout() {
                           logout();
                           setUserOpen(false);
                         }}
-                        className="block w-full rounded-xl px-3 py-2 text-left text-sm text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam"
+                        className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         {t("nav.logout")}
                       </button>
@@ -271,7 +356,7 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
+      <main className="container mx-auto flex w-full flex-1 flex-col px-4 py-8 lg:px-8">
         <Outlet />
       </main>
 
@@ -279,3 +364,5 @@ export function Layout() {
     </div>
   );
 }
+
+

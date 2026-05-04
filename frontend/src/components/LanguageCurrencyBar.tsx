@@ -17,7 +17,7 @@ const currencies: Array<{ code: CurrencyCode; icon: string }> = [
 ];
 
 export function LanguageCurrencyBar() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { currency, setCurrency } = useStore();
 
   const currentLang = langs.find(l => l.code === i18n.language) || langs[0];

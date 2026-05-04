@@ -11,15 +11,15 @@ export function SectionDropdown({ sectionId }: { sectionId: SectionId }) {
   const items = (section?.categories ?? []) as readonly Category[];
 
   return (
-    <div className="relative group pb-2">
+    <div className="relative group">
       <NavLink
         to={`/category/${sectionId}`}
         className={({ isActive }) =>
           [
-            "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
+            "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
             isActive
-              ? "bg-eagle-red/15 text-eagle-red"
-              : "text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam",
+              ? "bg-white text-[#0a0f1a]"
+              : "text-white/70 hover:bg-white/10 hover:text-white",
           ].join(" ")
         }
       >
@@ -43,8 +43,9 @@ export function SectionDropdown({ sectionId }: { sectionId: SectionId }) {
         </svg>
       </NavLink>
 
-      <div className="pointer-events-none absolute left-0 top-full z-50 w-56 origin-top-left rounded-2xl border border-eagle-mist/40 bg-eagle-deep/95 p-2 text-sm shadow-xl shadow-black/25 backdrop-blur-md opacity-0 translate-y-1 scale-95 transition duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-hover:animate-fade-up">
-        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-eagle-sand/60">
+      <div className="absolute left-0 top-full h-3 w-56" />
+      <div className="pointer-events-none absolute left-0 top-[calc(100%+0.5rem)] z-50 w-56 origin-top-left translate-y-1 scale-95 rounded-2xl border border-white/10 bg-[#0a0f1a]/95 p-2 text-sm text-white opacity-0 shadow-xl shadow-black/25 backdrop-blur-md transition duration-150 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-hover:animate-fade-up">
+        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-primary">
           {t(`nav.${sectionId}`)}
         </p>
         <div className="grid gap-1">
@@ -54,10 +55,10 @@ export function SectionDropdown({ sectionId }: { sectionId: SectionId }) {
               to={`/category/${cat}`}
               className={({ isActive }) =>
                 [
-                  "rounded-xl px-3 py-2 transition",
+                  "rounded-xl px-3 py-2 transition-colors",
                   isActive
-                    ? "bg-eagle-red/20 text-eagle-red"
-                    : "text-eagle-sand/80 hover:bg-eagle-mist/35 hover:text-eagle-foam",
+                    ? "bg-white text-[#0a0f1a]"
+                    : "text-white/70 hover:bg-white/10 hover:text-white",
                 ].join(" ")
               }
             >
@@ -69,4 +70,6 @@ export function SectionDropdown({ sectionId }: { sectionId: SectionId }) {
     </div>
   );
 }
+
+
 
