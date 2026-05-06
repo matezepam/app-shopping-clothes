@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120">
+  <rect width="320" height="120" rx="24" fill="#fff"/>
+  <rect x="1" y="1" width="318" height="118" rx="23" fill="none" stroke="#e5e7eb" stroke-width="2"/>
+  <rect x="34" y="34" width="116" height="70" rx="14" fill="#1d4ed8"/>
+  <rect x="54" y="52" width="76" height="10" rx="5" fill="#bfdbfe"/>
+  <rect x="54" y="76" width="42" height="8" rx="4" fill="#f8fafc"/>
+  <circle cx="216" cy="68" r="28" fill="#ef4444" opacity=".9"/>
+  <circle cx="250" cy="68" r="28" fill="#f59e0b" opacity=".9"/>
+  <text x="92" y="24" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="800" fill="#0f172a">CREDIT</text>
+  <text x="233" y="24" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="800" fill="#0f172a">CARDS</text>
+</svg>

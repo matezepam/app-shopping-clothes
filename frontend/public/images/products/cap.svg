@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#fb7185"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1100" fill="url(#bg)"/>
+  <path d="M210 560c35-165 150-250 340-250 130 0 225 70 285 205-140-25-265-15-375 30-90 38-172 42-250 15z" fill="#0f172a" stroke="#ffffff" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M520 530c120-30 230-25 330 15 30 15 32 60 0 78-125 70-258 62-400-25z" fill="#ffffff" stroke="#0f172a" stroke-width="18"/>
+  <circle cx="455" cy="435" r="72" fill="#f59e0b"/>
+  <path d="M410 435h90M455 390v90" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
+  <text x="450" y="820" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#0f172a">Eagle Cap</text>
+</svg>

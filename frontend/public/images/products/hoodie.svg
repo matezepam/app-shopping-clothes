@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="hoodie" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1100" fill="url(#bg)"/>
+  <circle cx="180" cy="220" r="150" fill="#f59e0b" opacity=".24"/>
+  <path d="M335 205c-85 45-135 120-130 230l-70 205 115 58 55-130v332h290V568l55 130 115-58-70-205c5-110-45-185-130-230-45-24-185-24-230 0z" fill="url(#hoodie)" stroke="#f8fafc" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M330 235c45 85 195 85 240 0M370 325c25 55 135 55 160 0" fill="none" stroke="#f59e0b" stroke-width="16" stroke-linecap="round"/>
+  <rect x="360" y="580" width="180" height="105" rx="28" fill="#f8fafc" opacity=".14" stroke="#f8fafc" stroke-width="10"/>
+  <text x="450" y="960" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#f8fafc">Eagle Hoodie</text>
+</svg>
