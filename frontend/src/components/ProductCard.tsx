@@ -13,9 +13,9 @@ export function ProductCard({ product }: { product: Product }) {
   const wished = isWishlisted(product.id);
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-eagle-mist/40 bg-eagle-deep/60 shadow-lg shadow-black/20 backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:border-eagle-red/55 hover:shadow-eagle-red/20">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-black/10 bg-white shadow-lg shadow-black/5 transition duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/10">
       <Link to={`/category/${product.category}#${product.id}`} className="block">
-        <div className="relative aspect-[4/5] overflow-hidden bg-eagle-mist/30">
+        <div className="relative aspect-[4/5] overflow-hidden bg-muted">
           <img
             src={product.image}
             alt=""
@@ -28,13 +28,13 @@ export function ProductCard({ product }: { product: Product }) {
                 );
             }}
           />
-          <span className="absolute left-3 top-3 rounded-full bg-eagle-night/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-eagle-gold ring-1 ring-eagle-gold/30">
+          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-foreground shadow-sm ring-1 ring-black/10">
             {t(`categories.${product.category}`)}
           </span>
           <button
             type="button"
             aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
-            className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-eagle-night/80 text-eagle-sand/90 ring-1 ring-eagle-mist/40 transition hover:bg-eagle-night hover:text-eagle-foam"
+            className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 text-accent shadow-sm ring-1 ring-black/10 transition hover:bg-accent hover:text-white"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -58,24 +58,27 @@ export function ProductCard({ product }: { product: Product }) {
       </Link>
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div>
-          <h3 className="font-display text-lg font-semibold text-eagle-foam">
+          <h3 className="font-display text-lg font-bold text-foreground">
             {product.name}
           </h3>
-          <p className="mt-1 text-sm text-eagle-sand/80">
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">
             {t(`concepts.${product.concept}.title`)}
           </p>
         </div>
-        <p className="line-clamp-3 flex-1 text-sm leading-relaxed text-eagle-sand/90">
-          {storyText === storyKey ? t(`concepts.${product.concept}.desc`) : storyText}
+        <p className="line-clamp-2 flex-1 text-sm font-medium leading-relaxed text-muted-foreground">
+          {product.shortDescription ??
+            (storyText === storyKey
+              ? t(`concepts.${product.concept}.desc`)
+              : storyText)}
         </p>
-        <div className="flex items-center justify-between gap-2 border-t border-eagle-mist/30 pt-3">
-          <span className="font-display text-xl font-bold text-eagle-gold">
+        <div className="flex items-center justify-between gap-2 border-t border-black/10 pt-3">
+          <span className="font-display text-xl font-bold text-foreground">
             {formatMoney(price, currency)}
           </span>
           <button
             type="button"
             onClick={() => addToCart(product.id)}
-            className="rounded-xl bg-eagle-red px-4 py-2 text-sm font-semibold text-eagle-foam transition hover:scale-[1.03] hover:bg-eagle-gold hover:text-eagle-night"
+            className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition hover:scale-[1.03] hover:bg-secondary"
           >
             {t("product.add")}
           </button>
