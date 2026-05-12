@@ -82,5 +82,4 @@ cd ../backend && npm run build && npm start
 1. **Stripe:** crear PaymentIntent o Checkout Session en el backend; marcar orden `paid` tras webhook.
 2. **Strapi:** modelos `Product`, `Story`, `Concept`; el front consumiría la API de Strapi o sincronizaría a Postgres.
 3. **Roles:** más granular (editor, soporte).
-4. **Informes:** export CSV, filtros por fechas.
 
