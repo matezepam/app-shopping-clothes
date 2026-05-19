@@ -1,40 +1,82 @@
-# (React + TS + Tailwind v3 + Express + Postgres + Docker)
+# 🛒 Eagle Shop — Full Stack E-commerce
+
+Sistema web integral de comercio electrónico moderno construido con arquitectura full stack escalable.
+
+---
+
+## 🚀 Stack tecnológico
 
 | Capa | Tecnología |
 |------|------------|
-| Frontend | React 19, TypeScript, Vite 8, **Tailwind CSS v3**, react-router-dom, i18next |
-| Backend | Node.js, **Express 5**, TypeScript, **PostgreSQL** (`pg`), JWT, bcryptjs, Zod |
-| Contenedores | Docker Compose (Postgres + API) |
-| Deploy UI | **Vercel** (carpeta `frontend`, `vercel.json` SPA) |
+| 🎨 Frontend | React 19, TypeScript, Vite 8, Tailwind CSS v3, react-router-dom, i18next |
+| ⚙️ Backend | Node.js, Express 5, TypeScript, PostgreSQL (pg), JWT, bcryptjs, Zod |
+| 🐳 Infraestructura | Docker Compose (Postgres + API) |
+| 🌐 Deploy UI | Vercel (frontend SPA con vercel.json) |
 
-**Strapi** y **Stripe** no están cableados aún: el backend ya permite órdenes reales en Postgres; puedes añadir Strapi como CMS de contenidos y Stripe Checkout sustituyendo el checkout demo (ver sección Roadmap).
+---
 
-## Requisitos
+## 📦 Estado del proyecto
 
-- Node 22+ 
-- Docker Desktop (para Postgres + API)
+- 🟢 Autenticación con JWT
+- 🟢 Gestión de productos
+- 🟢 Carrito y órdenes reales en PostgreSQL
+- 🟢 Panel básico de admin
+- 🟡 Stripe (pendiente integración)
+- 🟡 Strapi CMS (opcional futuro)
 
-## Imágenes (plantillas)
+---
 
-Coloca tus fotos en `frontend/public/templates/` con los mismos nombres que en `frontend/src/data/products.ts` (o actualiza las rutas). Hay un placeholder SVG en error de carga en tarjetas.
+## 🧰 Requisitos
 
-## Desarrollo local
+- Node.js 22+
+- Docker Desktop
+- Git
 
-### 1) Base de datos + API (Docker)
+---
+
+## 🖼️ Imágenes del proyecto
+
+Coloca tus imágenes en:
+
+```
+frontend/public/templates/
+```
+
+📌 Deben coincidir con los nombres definidos en:
+```
+frontend/src/data/products.ts
+```
+
+Si no existen, se mostrará un placeholder SVG automáticamente.
+
+---
+
+## 🧪 Desarrollo local
+
+### 🐳 1. Levantar base de datos + API
 
 ```bash
 docker compose up --build
 ```
 
-- Postgres: `localhost:5432` (usuario `eagle`, contraseña `eagle`, BD `eagle_shop`)
-- API: `http://localhost:4000` (health: `GET /health`)
+📍 Servicios:
 
-El script `backend/db/init.sql` crea tablas, productos de ejemplo y un **admin**:
+- 🗄️ PostgreSQL → `localhost:5432`
+  - user: `eagle`
+  - password: `eagle`
+  - db: `eagle_shop`
 
-- **Email:** `admin@eagle.store`
-- **Password:** `Admin123!`
+- ⚡ API → `http://localhost:4000`
+  - health check: `GET /health`
 
-### 2) Frontend
+👤 Usuario admin por defecto:
+
+- 📧 Email: `admin@eagle.store`
+- 🔑 Password: `Admin123!`
+
+---
+
+### 💻 2. Frontend (Vite + React)
 
 ```bash
 cd frontend
@@ -42,44 +84,154 @@ npm install
 npm run dev
 ```
 
-Vite hace **proxy** de `/api` → `http://localhost:4000` (`vite.config.ts`). No necesitas `.env` en local.
-
-### 3) Build
-
-```bash
-cd frontend && npm run build
-cd ../backend && npm run build && npm start
+📌 El proxy `/api` apunta automáticamente a:
+```
+http://localhost:4000
 ```
 
-## Vercel (solo frontend)
+---
 
-1. Proyecto en Vercel apuntando a `frontend/`.
-2. Variable de entorno: `VITE_API_URL=https://tu-api-publica.com` (sin barra final).
-3. Despliega el **backend** en otro servicio (Railway, Fly.io, Render, VPS) con `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN` (origen de Vercel).
+### 🏗️ 3. Build producción
 
-## API (resumen)
+```bash
+cd frontend
+npm run build
 
-| Método | Ruta | Notas |
-|--------|------|--------|
-| POST | `/api/auth/register` | Usuario `user` |
-| POST | `/api/auth/login` | JWT |
-| GET | `/api/auth/me` | Bearer token |
-| GET | `/api/products` | Catálogo (sincronizado con seeds SQL) |
-| GET | `/api/orders` | Historial del usuario |
-| POST | `/api/orders` | Checkout (descuenta stock) |
-| GET/POST | `/api/returns` | Lista / crear devolución |
-| GET | `/api/admin/stats` | **Admin:** resumen, top productos, ingresos por día |
-| GET | `/api/admin/returns` | **Admin:** todas las devoluciones |
-| PATCH | `/api/admin/returns/:id` | **Admin:** `approved` / `rejected` / `refunded` + nota |
+cd ../backend
+npm run build
+npm start
+```
 
-## Idiomas y moneda
+---
 
-- **Idiomas:** EN, ES, FR, DE (`src/i18n`).
-- **Monedas:** USD, EUR, GBP con tipos de cambio **demo** en `src/lib/currency.ts` (sustituir por API real).
+## 🌐 Deploy en Vercel (Frontend)
 
-## Roadmap sugerido
+### 1. Configuración
 
-1. **Stripe:** crear PaymentIntent o Checkout Session en el backend; marcar orden `paid` tras webhook.
-2. **Strapi:** modelos `Product`, `Story`, `Concept`; el front consumiría la API de Strapi o sincronizaría a Postgres.
-3. **Roles:** más granular (editor, soporte).
+- Root directory: `frontend/`
+- Framework: Vite
 
+### 2. Variables de entorno
+
+```env
+VITE_API_URL=https://tu-api-publica.com
+```
+
+⚠️ Sin barra final (`/`)
+
+---
+
+### 3. Backend en producción
+
+Puedes desplegarlo en:
+
+- 🚂 Railway
+- 🪶 Fly.io
+- ⚡ Render
+- 🖥️ VPS
+
+Variables necesarias:
+
+```env
+DATABASE_URL=
+JWT_SECRET=
+CORS_ORIGIN=https://tu-frontend.vercel.app
+```
+
+---
+
+## 📡 API Overview
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Registro de usuario |
+| POST | `/api/auth/login` | Login + JWT |
+| GET | `/api/auth/me` | Perfil usuario |
+| GET | `/api/products` | Catálogo |
+| POST | `/api/orders` | Crear orden |
+| GET | `/api/orders` | Historial de órdenes |
+| GET | `/api/returns` | Devoluciones |
+| POST | `/api/returns` | Crear devolución |
+| GET | `/api/admin/stats` | Estadísticas admin |
+| GET | `/api/admin/returns` | Gestión devoluciones |
+| PATCH | `/api/admin/returns/:id` | Actualizar estado |
+
+---
+
+## 🌍 Internacionalización
+
+Soporte multi-idioma:
+
+- 🇺🇸 EN
+- 🇪🇸 ES
+- 🇫🇷 FR
+- 🇩🇪 DE
+
+📁 Configuración:
+```
+src/i18n
+```
+
+---
+
+## 💱 Monedas
+
+Soporte:
+
+- USD
+- EUR
+- GBP
+
+📌 Actualmente en modo demo:
+```
+src/lib/currency.ts
+```
+
+⚠️ Recomendado: integrar API real de conversión.
+
+---
+
+## 🧭 Roadmap
+
+### 💳 Stripe
+- Checkout Sessions
+- Webhooks de pago
+- Estado `paid` en órdenes
+
+### 🧩 Strapi CMS
+- Productos dinámicos
+- Blog / contenido
+- Sincronización con Postgres
+
+### 🔐 Roles avanzados
+- Admin
+- Editor
+- Soporte
+
+---
+
+## 🐳 Docker
+
+```bash
+docker compose up --build
+```
+
+Incluye:
+
+- PostgreSQL
+- Backend API
+
+---
+
+## 📌 Notas
+
+- Frontend es SPA (React Router)
+- Backend sigue arquitectura REST
+- Preparado para escalar a microservicios
+- Diseño modular y extensible
+
+---
+
+## ⭐ Autor
+
+Paulo Salazar
