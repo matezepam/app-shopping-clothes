@@ -1,6 +1,4 @@
 import type { CurrencyCode } from "../types/store";
-
-/** Tipos de cambio de demostración; conecta a un API real en producción. */
 export const FX_TO_USD: Record<CurrencyCode, number> = {
   USD: 1,
   EUR: 1.08,

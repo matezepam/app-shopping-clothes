@@ -5,9 +5,9 @@ import {
   api,
   type AdminReturnRow,
   type AdminStats,
-} from "../lib/api";
-import { useStore } from "../context/StoreContext";
-import { formatMoney } from "../lib/currency";
+} from "../../lib/api";
+import { useStore } from "../../context/StoreContext";
+import { formatMoney } from "../../lib/currency";
 
 export function AdminPage() {
   const { t } = useTranslation();

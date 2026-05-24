@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { EagleLogo } from "./EagleLogo";
+import { EagleLogo } from "./Logo";
 import { Footer } from "./Footer";
-import { useStore } from "../context/StoreContext";
-import { SectionDropdown } from "./SectionDropdown";
-import { formatMoney, fromUsd } from "../lib/currency";
+import { useStore } from "../../context/StoreContext";
+import { SectionDropdown } from "../product/SectionDropdown";
+import { formatMoney, fromUsd } from "../../lib/currency";
 
 function navClass(isActive: boolean) {
   return [
@@ -315,14 +315,14 @@ export function Layout() {
                   {!user ? (
                     <>
                       <Link
-                        to="/login?mode=login"
+                        to="/login"
                         onClick={() => setUserOpen(false)}
                         className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         {t("nav.login")}
                       </Link>
                       <Link
-                        to="/login?mode=register"
+                        to="/register"
                         onClick={() => setUserOpen(false)}
                         className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >

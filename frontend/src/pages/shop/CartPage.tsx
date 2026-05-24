@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useStore } from "../context/StoreContext";
-import { formatMoney, fromUsd } from "../lib/currency";
+import { useStore } from "../../context/StoreContext";
+import { formatMoney, fromUsd } from "../../lib/currency";
 
 type PaymentMethod = "card" | "paypal" | "skrill" | "googlePay" | "applePay";
 

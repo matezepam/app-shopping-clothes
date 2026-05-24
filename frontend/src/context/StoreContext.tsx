@@ -34,7 +34,18 @@ type StoreContextValue = {
   loadingAuth: boolean;
   setCurrency: (c: CurrencyCode) => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    phone: string;
+    country: string;
+    countryCode: string;
+    countryFlag: string;
+    age: number;
+    gender: string;
+  }) => Promise<void>;
   logout: () => void;
   addToCart: (productId: string, qty?: number) => void;
   setQuantity: (productId: string, quantity: number) => void;
@@ -139,8 +150,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      const res = await api.register({ name, email, password });
+    async (data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      password: string;
+      phone: string;
+      country: string;
+      countryCode: string;
+      countryFlag: string;
+      age: number;
+      gender: string;
+    }) => {
+      const res = await api.register({
+        name: `${data.firstName} ${data.lastName}`,
+        email: data.email,
+        password: data.password,
+      });
       localStorage.setItem(TOKEN_KEY, res.token);
       setToken(res.token);
       setUser(res.user);
@@ -154,9 +180,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setOrders([]);
     setReturns([]);
-    // Wishlist local (no del servidor) se mantiene para UX, pero puedes
-    // limpiarla si prefieres:
-    // setWishlistProductIds([]);
   }, []);
 
   const addToCart = useCallback((productId: string, qty = 1) => {

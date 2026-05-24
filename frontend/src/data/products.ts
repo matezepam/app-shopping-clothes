@@ -1,6 +1,4 @@
 import type { Product } from "../types/store";
-
-/** Plantillas: reemplaza `image` con tus archivos en `public/templates/`. */
 export const products: Product[] = [
   {
     id: "galapagos-tee",
@@ -9,6 +7,9 @@ export const products: Product[] = [
     concept: "galapagos",
     priceUsd: 34,
     image: "/templates/galapagos-tee.jpg",
+    gender: "male",
+    subcategory: "camisetas",
+    color: "azul",
   },
   {
     id: "quito-hoodie",
@@ -17,6 +18,9 @@ export const products: Product[] = [
     concept: "quito",
     priceUsd: 62,
     image: "/templates/quito-hoodie.jpg",
+    gender: "male",
+    subcategory: "camisetas",
+    color: "negro",
   },
   {
     id: "otavalo-cap",
@@ -25,6 +29,9 @@ export const products: Product[] = [
     concept: "otavalo",
     priceUsd: 28,
     image: "/templates/otavalo-cap.jpg",
+    gender: "male",
+    subcategory: "gorras",
+    color: "beige",
   },
   {
     id: "andes-canvas",
@@ -33,6 +40,9 @@ export const products: Product[] = [
     concept: "andes",
     priceUsd: 95,
     image: "/templates/andes-canvas.jpg",
+    gender: "male",
+    subcategory: "bolsos",
+    color: "gris",
   },
   {
     id: "amazonia-tee-w",
@@ -41,6 +51,9 @@ export const products: Product[] = [
     concept: "amazonia",
     priceUsd: 36,
     image: "/templates/amazonia-tee.jpg",
+    gender: "female",
+    subcategory: "camisetas",
+    color: "blanco",
   },
   {
     id: "coast-souvenir",
@@ -49,6 +62,9 @@ export const products: Product[] = [
     concept: "coast",
     priceUsd: 42,
     image: "/templates/coast-pack.jpg",
+    gender: "female",
+    subcategory: "joyas",
+    color: "plateado",
   },
   {
     id: "galapagos-cap-black",
@@ -57,6 +73,9 @@ export const products: Product[] = [
     concept: "galapagos",
     priceUsd: 29,
     image: "/templates/galapagos-cap-black.jpg",
+    gender: "male",
+    subcategory: "gorras",
+    color: "negro",
   },
   {
     id: "quito-tee-classic",
@@ -65,6 +84,9 @@ export const products: Product[] = [
     concept: "quito",
     priceUsd: 32,
     image: "/templates/quito-tee-classic.jpg",
+    gender: "male",
+    subcategory: "camisetas",
+    color: "blanco",
   },
   {
     id: "otavalo-hoodie-sand",
@@ -73,6 +95,9 @@ export const products: Product[] = [
     concept: "otavalo",
     priceUsd: 64,
     image: "/templates/otavalo-hoodie-sand.jpg",
+    gender: "female",
+    subcategory: "camisetas",
+    color: "beige",
   },
   {
     id: "andes-tee-red",
@@ -81,6 +106,9 @@ export const products: Product[] = [
     concept: "andes",
     priceUsd: 37,
     image: "/templates/andes-tee-red.jpg",
+    gender: "male",
+    subcategory: "camisetas",
+    color: "rojo",
   },
   {
     id: "amazonia-cap-green",
@@ -89,6 +117,9 @@ export const products: Product[] = [
     concept: "amazonia",
     priceUsd: 27,
     image: "/templates/amazonia-cap-green.jpg",
+    gender: "male",
+    subcategory: "gorras",
+    color: "verde",
   },
   {
     id: "coast-hoodie-cream",
@@ -97,6 +128,9 @@ export const products: Product[] = [
     concept: "coast",
     priceUsd: 59,
     image: "/templates/coast-hoodie-cream.jpg",
+    gender: "female",
+    subcategory: "camisetas",
+    color: "beige",
   },
   {
     id: "galapagos-canvas-wide",
@@ -105,6 +139,9 @@ export const products: Product[] = [
     concept: "galapagos",
     priceUsd: 110,
     image: "/templates/galapagos-canvas-wide.jpg",
+    gender: "male",
+    subcategory: "bolsos",
+    color: "azul",
   },
   {
     id: "quito-poster-night",
@@ -113,6 +150,9 @@ export const products: Product[] = [
     concept: "quito",
     priceUsd: 76,
     image: "/templates/quito-poster-night.jpg",
+    gender: "female",
+    subcategory: "bisuteria",
+    color: "negro",
   },
   {
     id: "otavalo-souvenir-kit",
@@ -121,6 +161,9 @@ export const products: Product[] = [
     concept: "otavalo",
     priceUsd: 46,
     image: "/templates/otavalo-souvenir-kit.jpg",
+    gender: "female",
+    subcategory: "joyas",
+    color: "dorado",
   },
   {
     id: "andes-souvenir-stamp",
@@ -129,6 +172,9 @@ export const products: Product[] = [
     concept: "andes",
     priceUsd: 39,
     image: "/templates/andes-souvenir-stamp.jpg",
+    gender: "male",
+    subcategory: "bolsos",
+    color: "beige",
   },
   {
     id: "amazonia-canvas-river",
@@ -137,6 +183,9 @@ export const products: Product[] = [
     concept: "amazonia",
     priceUsd: 98,
     image: "/templates/amazonia-canvas-river.jpg",
+    gender: "female",
+    subcategory: "bisuteria",
+    color: "verde",
   },
   {
     id: "coast-cap-sun",
@@ -145,6 +194,9 @@ export const products: Product[] = [
     concept: "coast",
     priceUsd: 26,
     image: "/templates/coast-cap-sun.jpg",
+    gender: "female",
+    subcategory: "gorras",
+    color: "blanco",
   },
   {
     id: "galapagos-hoodie-graph",
@@ -153,6 +205,9 @@ export const products: Product[] = [
     concept: "galapagos",
     priceUsd: 66,
     image: "/templates/galapagos-hoodie-graph.jpg",
+    gender: "male",
+    subcategory: "camisetas",
+    color: "gris",
   },
   {
     id: "quito-tee-altitude",
@@ -161,6 +216,9 @@ export const products: Product[] = [
     concept: "quito",
     priceUsd: 35,
     image: "/templates/quito-tee-altitude.jpg",
+    gender: "female",
+    subcategory: "camisetas",
+    color: "rojo",
   },
   {
     id: "otavalo-cap-woven",
@@ -169,6 +227,9 @@ export const products: Product[] = [
     concept: "otavalo",
     priceUsd: 31,
     image: "/templates/otavalo-cap-woven.jpg",
+    gender: "female",
+    subcategory: "gorras",
+    color: "rosa",
   },
   {
     id: "andes-hoodie-trail",
@@ -177,6 +238,9 @@ export const products: Product[] = [
     concept: "andes",
     priceUsd: 61,
     image: "/templates/andes-hoodie-trail.jpg",
+    gender: "male",
+    subcategory: "camisetas",
+    color: "verde",
   },
   {
     id: "amazonia-souvenir-leaves",
@@ -185,6 +249,9 @@ export const products: Product[] = [
     concept: "amazonia",
     priceUsd: 43,
     image: "/templates/amazonia-souvenir-leaves.jpg",
+    gender: "female",
+    subcategory: "joyas",
+    color: "verde",
   },
   {
     id: "coast-tee-wave",
@@ -193,6 +260,9 @@ export const products: Product[] = [
     concept: "coast",
     priceUsd: 33,
     image: "/templates/coast-tee-wave.jpg",
+    gender: "male",
+    subcategory: "camisetas",
+    color: "azul",
   },
 ];
 

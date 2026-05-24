@@ -7,6 +7,14 @@ export type Category =
   | "caps"
   | "art";
 
+export type Gender = "male" | "female" | "non_binary" | "prefer_not_to_say";
+
+export type MaleSubcategory = "camisetas" | "gorras" | "bolsos";
+export type FemaleSubcategory = "camisetas" | "gorras" | "bolsos" | "bisuteria" | "joyas";
+export type ProductSubcategory = MaleSubcategory | FemaleSubcategory;
+
+export type ProductColor = "negro" | "blanco" | "rojo" | "azul" | "verde" | "beige" | "gris" | "dorado" | "plateado" | "rosa";
+
 export type UserRole = "user" | "admin";
 
 export interface Product {
@@ -17,6 +25,9 @@ export interface Product {
   concept: string;
   priceUsd: number;
   image: string;
+  gender: "male" | "female";
+  subcategory: ProductSubcategory;
+  color: ProductColor;
 }
 
 export interface CartItem {

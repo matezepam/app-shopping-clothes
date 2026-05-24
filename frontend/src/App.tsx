@@ -1,14 +1,15 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Layout } from "./components/Layout";
-import { AdminPage } from "./pages/AdminPage";
-import { CartPage } from "./pages/CartPage";
-import { CategoryPage } from "./pages/CategoryPage";
-import { HistoryPage } from "./pages/HistoryPage";
-import { HomePage } from "./pages/HomePage";
-import { LoginPage } from "./pages/LoginPage";
-import { ReturnsPage } from "./pages/ReturnsPage";
-import { AboutPage } from "./pages/AboutPage";
-import { PrivacyPage } from "./pages/PrivacyPage";
+import { Layout } from "./components/layout/Layout";
+import { AdminPage } from "./pages/admin/AdminPage";
+import { CartPage } from "./pages/shop/CartPage";
+import { CategoryPage } from "./pages/shop/CategoryPage";
+import { HistoryPage } from "./pages/info/HistoryPage";
+import { HomePage } from "./pages/shop/HomePage";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { RegisterPage } from "./pages/auth/RegisterPage";
+import { ReturnsPage } from "./pages/info/ReturnsPage";
+import { AboutPage } from "./pages/info/AboutPage";
+import { PrivacyPage } from "./pages/info/PrivacyPage";
 
 export function App() {
   return (
@@ -21,6 +22,7 @@ export function App() {
         <Route path="returns" element={<ReturnsPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="login" element={<LoginPage />} />
+        <Route path="register" element={<RegisterPage />} />
         <Route path="about" element={<AboutPage />} />
         <Route path="privacy" element={<PrivacyPage />} />
       </Route>

@@ -1,7 +1,8 @@
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { Category } from "../types/store";
-import { categorySections } from "../data/products";
+
+import type { Category } from "../../types/store";
+import { categorySections } from "../../data/products";
 
 type SectionId = "men" | "women" | "souvenirs";
 

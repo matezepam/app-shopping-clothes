@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useStore } from "../context/StoreContext";
+import { useStore } from "../../context/StoreContext";
 import { ProductCard } from "../components/ProductCard";
 
 export function WishlistPage() {
@@ -44,7 +44,6 @@ export function WishlistPage() {
         <p className="mt-6 text-eagle-sand/80">{t("wishlist.empty")}</p>
       ) : (
         <>
-          {/* Re-render correcto: ProductCard ocupa el grid */}
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {wishlistProducts.map((p) => (
               <ProductCard key={p.id} product={p} />

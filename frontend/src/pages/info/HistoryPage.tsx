@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useStore } from "../context/StoreContext";
-import { formatMoney, fromUsd } from "../lib/currency";
-import type { Order } from "../types/store";
+import { useStore } from "../../context/StoreContext";
+import { formatMoney, fromUsd } from "../../lib/currency";
+import type { Order } from "../../types/store";
 
 export function HistoryPage() {
   const { t } = useTranslation();

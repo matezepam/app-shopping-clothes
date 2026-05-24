@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import type { CurrencyCode } from "../types/store";
-import { persistLanguage } from "../i18n/config";
-import { useStore } from "../context/StoreContext";
+import type { CurrencyCode } from "../../types/store";
+import { persistLanguage } from "../../i18n/config";
+import { useStore } from "../../context/StoreContext";
 
 const langs = [
   { code: "en", label: "ENGLISH", flag: "🇺🇸" },
