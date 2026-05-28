@@ -1,12 +1,16 @@
 services:
   db:
     image: postgres:16-alpine
+    container_name: db_shopping_app
+
     environment:
-      POSTGRES_USER: eagle
-      POSTGRES_PASSWORD: eagle
-      POSTGRES_DB: eagle_shop
+      POSTGRES_USER: matezepam
+      POSTGRES_PASSWORD: 351759
+      POSTGRES_DB: db_shopping_app
+
     ports:
       - "5432:5432"
+
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./backend/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -15,12 +19,17 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+
+    container_name: app_shopping_clothes
+
     ports:
       - "4000:4000"
+
     environment:
-      DATABASE_URL: postgres://eagle:eagle@db:5432/eagle_shop
+      DATABASE_URL: postgres://matezepam:351759@db:5432/db_shopping_app
       JWT_SECRET: change-me-in-production
       CORS_ORIGIN: http://localhost:5173
+
     depends_on:
       - db
 
