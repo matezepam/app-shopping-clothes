@@ -61,11 +61,6 @@ docker compose up --build
 
 📍 Servicios:
 
-- 🗄️ PostgreSQL → `localhost:5432`
-  - user: `eagle`
-  - password: `eagle`
-  - db: `eagle_shop`
-
 - ⚡ API → `http://localhost:4000`
   - health check: `GET /health`
 
