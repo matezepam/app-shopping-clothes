@@ -1,4 +1,4 @@
-# 🛒 Eagle Shop — Full Stack E-commerce
+# 🛒 Sprint
 
 Sistema web integral de comercio electrónico moderno construido con arquitectura full stack escalable.
 
