@@ -1,4 +1,4 @@
-# 🛒 Eagle Shop — Full Stack E-commerce
+# 🛒 Sprint
 
 Sistema web integral de comercio electrónico moderno construido con arquitectura full stack escalable.
 
@@ -60,11 +60,6 @@ docker compose up --build
 ```
 
 📍 Servicios:
-
-- 🗄️ PostgreSQL → `localhost:5432`
-  - user: `eagle`
-  - password: `eagle`
-  - db: `eagle_shop`
 
 - ⚡ API → `http://localhost:4000`
   - health check: `GET /health`
