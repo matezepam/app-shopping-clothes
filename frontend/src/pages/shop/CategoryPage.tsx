@@ -1,11 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { ProductCard } from "../../components/product/ProductCard";
 import { useStore } from "../../context/StoreContext";
 import type { ProductColor, ProductSubcategory } from "../../types/store";
 
-const MALE_SUBCATEGORIES: ProductSubcategory[] = ["camisetas", "gorras", "bolsos"];
-const FEMALE_SUBCATEGORIES: ProductSubcategory[] = ["camisetas", "gorras", "bolsos", "bisuteria", "joyas"];
+type FilterSubcategory = ProductSubcategory | "pantalones";
+
+const SUBCATEGORIES: FilterSubcategory[] = [
+  "camisetas",
+  "gorras",
+  "bolsos",
+  "pantalones",
+  "bisuteria",
+  "joyas",
+];
+
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "Oversize"];
 
 const COLORS: { label: string; value: ProductColor; hex: string }[] = [
   { label: "Negro", value: "negro", hex: "#000000" },
@@ -20,111 +30,180 @@ const COLORS: { label: string; value: ProductColor; hex: string }[] = [
   { label: "Rosa", value: "rosa", hex: "#EC4899" },
 ];
 
-const SUBCATEGORY_LABELS: Record<ProductSubcategory, string> = {
+const SUBCATEGORY_LABELS: Record<FilterSubcategory, string> = {
   camisetas: "Camisetas",
   gorras: "Gorras",
   bolsos: "Bolsos",
+  pantalones: "Pantalones",
   bisuteria: "Bisutería",
   joyas: "Joyas",
 };
 
+const getProductPrice = (product: unknown) => {
+  const item = product as Record<string, unknown>;
+
+  const value =
+    item.price ??
+    item.finalPrice ??
+    item.basePrice ??
+    item.currentPrice ??
+    item.salePrice ??
+    item.discountPrice ??
+    item.precio;
+
+  const numericValue =
+    typeof value === "string"
+      ? Number(value.replace("$", "").replace(",", "."))
+      : Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const getProductSizes = (product: unknown) => {
+  const item = product as Record<string, unknown>;
+
+  if (Array.isArray(item.sizes)) {
+    return item.sizes.map((size) => String(size).toLowerCase());
+  }
+
+  if (Array.isArray(item.tallas)) {
+    return item.tallas.map((size) => String(size).toLowerCase());
+  }
+
+  if (item.size) {
+    return [String(item.size).toLowerCase()];
+  }
+
+  if (item.talla) {
+    return [String(item.talla).toLowerCase()];
+  }
+
+  return [];
+};
+
 export function CategoryPage() {
-  const { t } = useTranslation();
   const { catalog } = useStore();
+  const productsRef = useRef<HTMLDivElement | null>(null);
 
-  const [gender, setGender] = useState<"male" | "female">("male");
-  const [selectedSubcategories, setSelectedSubcategories] = useState<ProductSubcategory[]>(["camisetas"]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<FilterSubcategory[]>([]);
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100 });
 
-  const availableSubcategories = gender === "male" ? MALE_SUBCATEGORIES : FEMALE_SUBCATEGORIES;
+  const maxCatalogPrice = useMemo(() => {
+    const prices = catalog.map((product) => getProductPrice(product));
+    return Math.ceil(Math.max(...prices, 100));
+  }, [catalog]);
+
+  useEffect(() => {
+    setPriceRange({ min: 0, max: maxCatalogPrice });
+  }, [maxCatalogPrice]);
+
+  const scrollToProducts = () => {
+    setTimeout(() => {
+      productsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 50);
+  };
 
   const filtered = useMemo(() => {
     return catalog.filter((product) => {
-      const matchesGender = product.gender === gender;
-      const matchesSubcategory = selectedSubcategories.includes(product.subcategory);
+      const item = product as unknown as Record<string, unknown>;
+
+      const productSubcategory = String(item.subcategory ?? "");
+
+      const matchesSubcategory =
+        selectedSubcategories.length === 0 ||
+        selectedSubcategories.includes(productSubcategory as FilterSubcategory);
+
       const matchesColor = selectedColor ? product.color === selectedColor : true;
 
-      return matchesGender && matchesSubcategory && matchesColor;
+      const productPrice = getProductPrice(product);
+
+      const matchesPrice =
+        productPrice >= priceRange.min && productPrice <= priceRange.max;
+
+      const productSizes = getProductSizes(product);
+
+      const matchesSize = selectedSize
+        ? productSizes.length === 0 || productSizes.includes(selectedSize.toLowerCase())
+        : true;
+
+      return matchesSubcategory && matchesColor && matchesPrice && matchesSize;
     });
-  }, [catalog, gender, selectedSubcategories, selectedColor]);
+  }, [catalog, selectedSubcategories, selectedColor, selectedSize, priceRange]);
 
-  const handleGenderChange = (newGender: "male" | "female") => {
-    setGender(newGender);
-    setSelectedSubcategories([newGender === "male" ? "camisetas" : "camisetas"]);
-    setSelectedColor(null);
-  };
+  const availableColors = useMemo(() => {
+    const uniqueColors = new Set(catalog.map((product) => product.color));
+    return COLORS.filter((color) => uniqueColors.has(color.value));
+  }, [catalog]);
 
-  const toggleSubcategory = (sub: ProductSubcategory) => {
-    setSelectedSubcategories((prev) => {
-      if (prev.includes(sub)) {
-        return prev.length === 1 ? prev : prev.filter((s) => s !== sub);
-      }
-      return [...prev, sub];
-    });
-  };
-
-  const getUniqueColors = () => {
-    const uniqueColors = new Set(
-      filtered.map((p) => p.color)
+  const toggleSubcategory = (subcategory: FilterSubcategory) => {
+    setSelectedSubcategories((prev) =>
+      prev.includes(subcategory)
+        ? prev.filter((item) => item !== subcategory)
+        : [...prev, subcategory]
     );
-    return COLORS.filter((c) => uniqueColors.has(c.value));
+
+    scrollToProducts();
   };
+
+  const handleColorChange = (color: ProductColor) => {
+    setSelectedColor((prev) => (prev === color ? null : color));
+    scrollToProducts();
+  };
+
+  const handleSizeChange = (size: string) => {
+    setSelectedSize((prev) => (prev === size ? null : size));
+    scrollToProducts();
+  };
+
+  const handleMinPriceChange = (value: number) => {
+    setPriceRange((prev) => ({
+      min: Math.min(value, prev.max),
+      max: prev.max,
+    }));
+
+    scrollToProducts();
+  };
+
+  const handleMaxPriceChange = (value: number) => {
+    setPriceRange((prev) => ({
+      min: prev.min,
+      max: Math.max(value, prev.min),
+    }));
+
+    scrollToProducts();
+  };
+
+  const clearFilters = () => {
+    setSelectedSubcategories([]);
+    setSelectedColor(null);
+    setSelectedSize(null);
+    setPriceRange({ min: 0, max: maxCatalogPrice });
+    scrollToProducts();
+  };
+
+  const hasFilters =
+    selectedSubcategories.length > 0 ||
+    selectedColor ||
+    selectedSize ||
+    priceRange.min !== 0 ||
+    priceRange.max !== maxCatalogPrice;
 
   return (
-    <div className="space-y-8">
-      {/* Gender Selector */}
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-md">
-        <h2 className="mb-4 font-display text-lg font-bold text-foreground">
-          Género
-        </h2>
-        <div className="flex gap-3 sm:gap-4">
-          {(["male", "female"] as const).map((g) => (
-            <button
-              key={g}
-              onClick={() => handleGenderChange(g)}
-              className={`flex-1 rounded-2xl px-6 py-3 font-bold transition ${
-                gender === g
-                  ? "bg-accent text-white shadow-lg shadow-accent/25"
-                  : "border border-white/10 bg-white/5 text-foreground hover:bg-white/10"
-              }`}
-            >
-              {g === "male" ? "👨 Hombre" : "👩 Mujer"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Subcategories Selector */}
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-md">
-        <h2 className="mb-4 font-display text-lg font-bold text-foreground">
-          Categoría
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {availableSubcategories.map((sub) => (
-            <button
-              key={sub}
-              onClick={() => toggleSubcategory(sub)}
-              className={`rounded-2xl px-4 py-2 text-sm font-bold transition ${
-                selectedSubcategories.includes(sub)
-                  ? "bg-secondary text-white shadow-lg shadow-secondary/25"
-                  : "border border-white/10 bg-white/5 text-foreground hover:bg-white/10"
-              }`}
-            >
-              {SUBCATEGORY_LABELS[sub]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Color Selector */}
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-md">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-foreground">
-            Color
+    <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
+      <aside className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-md lg:sticky lg:top-24 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="font-display text-xl font-bold text-foreground">
+            Filtros
           </h2>
-          {selectedColor && (
+
+          {hasFilters && (
             <button
-              onClick={() => setSelectedColor(null)}
+              onClick={clearFilters}
               className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-foreground transition hover:bg-white/20"
             >
               <X size={14} />
@@ -132,71 +211,155 @@ export function CategoryPage() {
             </button>
           )}
         </div>
-        <div className="flex flex-wrap gap-3">
-          {getUniqueColors().map((color) => (
-            <button
-              key={color.value}
-              onClick={() => setSelectedColor(color.value === selectedColor ? null : color.value)}
-              className={`group flex flex-col items-center gap-2 transition ${
-                selectedColor === color.value ? "scale-110" : ""
-              }`}
-              title={color.label}
-            >
-              <div
-                className={`h-12 w-12 rounded-full border-2 transition ${
-                  selectedColor === color.value
-                    ? "border-white shadow-lg shadow-white/50"
-                    : "border-white/30 hover:border-white/60"
-                } ${color.hex === "#FFFFFF" ? "border-gray-300 bg-white" : ""}`}
-                style={{
-                  backgroundColor: color.hex,
-                }}
-              />
-              <span className="text-xs font-semibold text-foreground/70 group-hover:text-foreground">
-                {color.label}
-              </span>
-            </button>
-          ))}
-        </div>
-        {getUniqueColors().length === 0 && (
-          <p className="text-sm text-foreground/50">
-            No hay colores disponibles en esta selección
-          </p>
-        )}
-      </div>
 
-      {/* Results Summary */}
-      <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-4">
-        <p className="font-semibold text-foreground">
-          {filtered.length}{" "}
-          <span className="text-foreground/70">
-            {filtered.length === 1 ? "producto" : "productos"}
-          </span>
-        </p>
-        {selectedColor && (
+        <div className="space-y-6">
+          <section>
+            <h3 className="mb-3 font-display text-base font-bold text-foreground">
+              Categoría
+            </h3>
+
+            <div className="space-y-2">
+              {SUBCATEGORIES.map((subcategory) => (
+                <button
+                  key={subcategory}
+                  onClick={() => toggleSubcategory(subcategory)}
+                  className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-bold transition ${
+                    selectedSubcategories.includes(subcategory)
+                      ? "bg-secondary text-white shadow-lg shadow-secondary/25"
+                      : "border border-white/10 bg-white/5 text-foreground hover:bg-white/10"
+                  }`}
+                >
+                  {SUBCATEGORY_LABELS[subcategory]}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 font-display text-base font-bold text-foreground">
+              Precio
+            </h3>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-4 flex items-center justify-between text-sm font-bold text-foreground">
+                <span>${priceRange.min}</span>
+                <span>${priceRange.max}</span>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-foreground/60">
+                    Precio mínimo
+                  </p>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max={maxCatalogPrice}
+                    value={priceRange.min}
+                    onChange={(event) => handleMinPriceChange(Number(event.target.value))}
+                    className="w-full accent-current"
+                  />
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-foreground/60">
+                    Precio máximo
+                  </p>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max={maxCatalogPrice}
+                    value={priceRange.max}
+                    onChange={(event) => handleMaxPriceChange(Number(event.target.value))}
+                    className="w-full accent-current"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 font-display text-base font-bold text-foreground">
+              Talla
+            </h3>
+
+            <div className="grid grid-cols-2 gap-2">
+              {SIZES.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => handleSizeChange(size)}
+                  className={`rounded-2xl px-3 py-2 text-sm font-bold transition ${
+                    selectedSize === size
+                      ? "bg-accent text-white shadow-lg shadow-accent/25"
+                      : "border border-white/10 bg-white/5 text-foreground hover:bg-white/10"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 font-display text-base font-bold text-foreground">
+              Color
+            </h3>
+
+            <div className="grid grid-cols-5 gap-3">
+              {availableColors.map((color) => (
+                <button
+                  key={color.value}
+                  onClick={() => handleColorChange(color.value)}
+                  className={`h-10 w-10 rounded-full border-2 transition ${
+                    selectedColor === color.value
+                      ? "scale-110 border-white shadow-lg shadow-white/50"
+                      : "border-white/30 hover:border-white/60"
+                  } ${color.hex === "#FFFFFF" ? "border-gray-300 bg-white" : ""}`}
+                  style={{ backgroundColor: color.hex }}
+                  title={color.label}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <section ref={productsRef} className="scroll-mt-28 space-y-6">
+        <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold text-foreground">
+            {filtered.length}{" "}
+            <span className="text-foreground/70">
+              {filtered.length === 1 ? "producto" : "productos"}
+            </span>
+          </p>
+
           <p className="text-sm text-foreground/60">
-            Filtrado por color: <span className="font-bold capitalize">{selectedColor}</span>
+            Precio de{" "}
+            <span className="font-bold text-foreground">${priceRange.min}</span>{" "}
+            a{" "}
+            <span className="font-bold text-foreground">${priceRange.max}</span>
           </p>
-        )}
-      </div>
+        </div>
 
-      {/* Products Grid */}
-      {filtered.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-12 text-center">
-          <p className="text-lg font-semibold text-foreground/70">
-            No hay productos disponibles en esta selección
-          </p>
-          <p className="mt-2 text-sm text-foreground/50">
-            Intenta cambiar los filtros
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      )}
+        {filtered.length === 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-12 text-center">
+            <p className="text-lg font-semibold text-foreground/70">
+              No hay productos disponibles en esta selección
+            </p>
+            <p className="mt-2 text-sm text-foreground/50">
+              Intenta cambiar los filtros
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filtered.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

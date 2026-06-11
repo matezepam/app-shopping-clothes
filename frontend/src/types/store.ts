@@ -19,7 +19,6 @@ export type UserRole = "user" | "admin";
 
 export interface Product {
   id: string;
-  /** Texto por defecto si falta traducción */
   name: string;
   category: Category;
   concept: string;
