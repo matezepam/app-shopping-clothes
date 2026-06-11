@@ -1,4 +1,5 @@
 import type { CurrencyCode } from "../types/store";
+export type { CurrencyCode } from "../types/store";
 export const FX_TO_USD: Record<CurrencyCode, number> = {
   USD: 1,
   EUR: 1.08,
