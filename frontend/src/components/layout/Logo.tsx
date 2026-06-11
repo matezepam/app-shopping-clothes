@@ -6,7 +6,7 @@ export function EagleLogo({ className = "" }: { className?: string }) {
         
         <img
           src="/images/logo/logo-eg.svg"
-          alt="Eagle Logo"
+          alt="Sprint Logo"
           className="h-10 w-10 object-contain brightness-0 invert"
         />
 
