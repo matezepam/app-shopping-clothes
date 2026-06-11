@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import type {
   AdminProduct,
-  ProductStatus,
   StatusFilter,
 } from "../../types/admin";
 import {

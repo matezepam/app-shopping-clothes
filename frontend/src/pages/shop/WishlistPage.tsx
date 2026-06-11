@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../../context/StoreContext";
-import { ProductCard } from "../components/ProductCard";
+import { ProductCard } from "../../components/product/ProductCard";
 
 export function WishlistPage() {
   const { t } = useTranslation();

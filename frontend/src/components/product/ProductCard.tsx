@@ -6,6 +6,7 @@ import { useStore } from "../../context/StoreContext";
 
 type ProductWithImages = Product & {
   images?: string[];
+  shortDescription?: string;
 };
 
 export function ProductCard({ product }: { product: Product }) {
@@ -88,7 +89,7 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-          {product.shortDescription ??
+          {fullProduct.shortDescription ??
             (storyText === storyKey
               ? t(`concepts.${product.concept}.desc`)
               : storyText)}

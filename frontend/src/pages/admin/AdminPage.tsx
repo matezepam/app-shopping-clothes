@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import {
   Activity,
   AlertTriangle,
-  ArrowUpRight,
   BadgeDollarSign,
   Box,
   CheckCircle2,
