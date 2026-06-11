@@ -4,7 +4,6 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { EagleLogo } from "./Logo";
 import { Footer } from "./Footer";
 import { useStore } from "../../context/StoreContext";
-import { SectionDropdown } from "../product/SectionDropdown";
 import { formatMoney, fromUsd } from "../../lib/currency";
 
 function navClass(isActive: boolean) {
@@ -29,14 +28,18 @@ export function Layout() {
     removeFromCart,
     toggleWishlist,
   } = useStore();
+
   const [userOpen, setUserOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+
   const userRef = useRef<HTMLDivElement | null>(null);
   const wishlistRef = useRef<HTMLDivElement | null>(null);
   const cartRef = useRef<HTMLDivElement | null>(null);
+
   const cartCount = cart.reduce((a, i) => a + i.quantity, 0);
   const wishlistCount = wishlistProductIds.length;
+
   const cartPreview = useMemo(
     () =>
       cart
@@ -55,14 +58,17 @@ export function Layout() {
       }>,
     [cart, catalog],
   );
+
   const wishlistPreview = useMemo(
     () => catalog.filter((p) => wishlistProductIds.includes(p.id)),
     [catalog, wishlistProductIds],
   );
+
   const cartTotal = useMemo(
     () => cartPreview.reduce((sum, line) => sum + line.price * line.quantity, 0),
     [cartPreview],
   );
+
   const wishlistTotal = useMemo(
     () => wishlistPreview.reduce((sum, product) => sum + product.priceUsd, 0),
     [wishlistPreview],
@@ -75,6 +81,7 @@ export function Layout() {
       if (!wishlistRef.current?.contains(target)) setWishlistOpen(false);
       if (!cartRef.current?.contains(target)) setCartOpen(false);
     }
+
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, []);
@@ -91,9 +98,27 @@ export function Layout() {
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
               {t("nav.home")}
             </NavLink>
-            <SectionDropdown sectionId="men" />
-            <SectionDropdown sectionId="women" />
-            <SectionDropdown sectionId="souvenirs" />
+
+            <NavLink
+              to="/category/men"
+              className={({ isActive }) => navClass(isActive)}
+            >
+              {t("nav.men", { defaultValue: "Men" })}
+            </NavLink>
+
+            <NavLink
+              to="/category/women"
+              className={({ isActive }) => navClass(isActive)}
+            >
+              {t("nav.women", { defaultValue: "Women" })}
+            </NavLink>
+
+            <NavLink
+              to="/category/souvenirs"
+              className={({ isActive }) => navClass(isActive)}
+            >
+              {t("nav.souvenirs", { defaultValue: "Souvenirs" })}
+            </NavLink>
           </nav>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
@@ -120,13 +145,16 @@ export function Layout() {
                 >
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
+
                 {wishlistCount > 0 ? (
                   <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold text-[#0a0f1a]">
                     {wishlistCount}
                   </span>
                 ) : null}
               </button>
+
               <div className="absolute right-0 top-full h-3 w-80" />
+
               <div
                 className={[
                   "absolute right-0 top-[calc(100%+0.5rem)] z-50 w-80 rounded-2xl border border-white/10 bg-[#0a0f1a]/95 p-3 text-white shadow-xl shadow-black/25 backdrop-blur-md transition",
@@ -138,6 +166,7 @@ export function Layout() {
                 <p className="px-1 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
                   {t("nav.wishlist")}
                 </p>
+
                 {wishlistPreview.length === 0 ? (
                   <p className="px-1 py-3 text-sm text-white/70">
                     {t("wishlist.empty")}
@@ -150,13 +179,25 @@ export function Layout() {
                           key={p.id}
                           className="flex items-center gap-2 rounded-xl bg-white/10 p-2"
                         >
-                          <img src={p.image} alt="" className="h-11 w-11 rounded-lg object-cover" />
+                          <img
+                            src={p.image}
+                            alt=""
+                            className="h-11 w-11 rounded-lg object-cover"
+                          />
+
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm text-white">{p.name}</p>
+                            <p className="truncate text-sm text-white">
+                              {p.name}
+                            </p>
+
                             <p className="text-xs text-white/60">
-                              {formatMoney(fromUsd(p.priceUsd, currency), currency)}
+                              {formatMoney(
+                                fromUsd(p.priceUsd, currency),
+                                currency,
+                              )}
                             </p>
                           </div>
+
                           <button
                             type="button"
                             onClick={() => addToCart(p.id)}
@@ -164,13 +205,24 @@ export function Layout() {
                           >
                             + Cart
                           </button>
+
                           <button
                             type="button"
                             onClick={() => toggleWishlist(p.id)}
                             aria-label="Eliminar de wishlist"
                             className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors hover:bg-accent hover:text-white"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
                               <path d="M18 6 6 18" />
                               <path d="m6 6 12 12" />
                             </svg>
@@ -178,8 +230,10 @@ export function Layout() {
                         </div>
                       ))}
                     </div>
+
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 px-1 pt-3 text-sm">
                       <span className="font-semibold text-white/70">Total</span>
+
                       <span className="font-display text-base font-bold text-primary">
                         {formatMoney(fromUsd(wishlistTotal, currency), currency)}
                       </span>
@@ -216,13 +270,16 @@ export function Layout() {
                   <circle cx="20" cy="21" r="1" />
                   <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                 </svg>
+
                 {cartCount > 0 ? (
                   <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold text-[#0a0f1a]">
                     {cartCount}
                   </span>
                 ) : null}
               </button>
+
               <div className="absolute right-0 top-full h-3 w-80" />
+
               <div
                 className={[
                   "absolute right-0 top-[calc(100%+0.5rem)] z-50 w-80 rounded-2xl border border-white/10 bg-[#0a0f1a]/95 p-3 text-white shadow-xl shadow-black/25 backdrop-blur-md transition",
@@ -234,6 +291,7 @@ export function Layout() {
                 <p className="px-1 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
                   {t("nav.cart")}
                 </p>
+
                 {cartPreview.length === 0 ? (
                   <p className="px-1 py-3 text-sm text-white/70">
                     {t("cart.empty")}
@@ -246,20 +304,43 @@ export function Layout() {
                           key={line.productId}
                           className="flex items-center gap-2 rounded-xl bg-white/10 p-2"
                         >
-                          <img src={line.image} alt="" className="h-11 w-11 rounded-lg object-cover" />
+                          <img
+                            src={line.image}
+                            alt=""
+                            className="h-11 w-11 rounded-lg object-cover"
+                          />
+
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm text-white">{line.name}</p>
+                            <p className="truncate text-sm text-white">
+                              {line.name}
+                            </p>
+
                             <p className="text-xs text-white/60">
-                              {line.quantity} x {formatMoney(fromUsd(line.price, currency), currency)}
+                              {line.quantity} x{" "}
+                              {formatMoney(
+                                fromUsd(line.price, currency),
+                                currency,
+                              )}
                             </p>
                           </div>
+
                           <button
                             type="button"
                             onClick={() => removeFromCart(line.productId)}
                             aria-label="Eliminar del carrito"
                             className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors hover:bg-accent hover:text-white"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
                               <path d="M18 6 6 18" />
                               <path d="m6 6 12 12" />
                             </svg>
@@ -267,12 +348,15 @@ export function Layout() {
                         </div>
                       ))}
                     </div>
+
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 px-1 pt-3 text-sm">
                       <span className="font-semibold text-white/70">Total</span>
+
                       <span className="font-display text-base font-bold text-primary">
                         {formatMoney(fromUsd(cartTotal, currency), currency)}
                       </span>
                     </div>
+
                     <Link
                       to="/cart"
                       onClick={() => setCartOpen(false)}
@@ -310,6 +394,7 @@ export function Layout() {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               </button>
+
               {userOpen ? (
                 <div className="absolute right-0 top-14 z-50 w-56 rounded-2xl border border-white/10 bg-[#0a0f1a]/95 p-2 text-white shadow-xl shadow-black/25 backdrop-blur-md animate-fade-up">
                   {!user ? (
@@ -321,6 +406,7 @@ export function Layout() {
                       >
                         {t("nav.login")}
                       </Link>
+
                       <Link
                         to="/register"
                         onClick={() => setUserOpen(false)}
@@ -331,12 +417,36 @@ export function Layout() {
                     </>
                   ) : (
                     <>
-                      <p className="px-3 py-2 text-xs font-semibold text-primary">{user.name}</p>
-                      <NavLink to="/history" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">{t("nav.history")}</NavLink>
-                      <NavLink to="/returns" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">{t("nav.returns")}</NavLink>
+                      <p className="px-3 py-2 text-xs font-semibold text-primary">
+                        {user.name}
+                      </p>
+
+                      <NavLink
+                        to="/history"
+                        onClick={() => setUserOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                      >
+                        {t("nav.history")}
+                      </NavLink>
+
+                      <NavLink
+                        to="/returns"
+                        onClick={() => setUserOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                      >
+                        {t("nav.returns")}
+                      </NavLink>
+
                       {user.role === "admin" ? (
-                        <NavLink to="/admin" onClick={() => setUserOpen(false)} className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">{t("nav.admin")}</NavLink>
+                        <NavLink
+                          to="/admin"
+                          onClick={() => setUserOpen(false)}
+                          className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          {t("nav.admin")}
+                        </NavLink>
                       ) : null}
+
                       <button
                         type="button"
                         onClick={() => {
@@ -364,5 +474,3 @@ export function Layout() {
     </div>
   );
 }
-
-
