@@ -6,111 +6,151 @@ import { PageLoader } from "./components/common/PageLoader";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 
 const AdminPage = lazy(() =>
-  import("./pages/admin/AdminPage").then((module) => ({
-    default: module.AdminPage,
-  }))
+    import("./pages/admin/AdminPage").then((module) => ({
+        default: module.AdminPage,
+    }))
 );
 
 const CartPage = lazy(() =>
-  import("./pages/shop/CartPage").then((module) => ({
-    default: module.CartPage,
-  }))
+    import("./pages/shop/CartPage").then((module) => ({
+        default: module.CartPage,
+    }))
 );
 
 const CategoryPage = lazy(() =>
-  import("./pages/shop/CategoryPage").then((module) => ({
-    default: module.CategoryPage,
-  }))
+    import("./pages/shop/CategoryPage").then((module) => ({
+        default: module.CategoryPage,
+    }))
 );
 
 const HistoryPage = lazy(() =>
-  import("./pages/info/HistoryPage").then((module) => ({
-    default: module.HistoryPage,
-  }))
+    import("./pages/info/HistoryPage").then((module) => ({
+        default: module.HistoryPage,
+    }))
 );
 
 const HomePage = lazy(() =>
-  import("./pages/shop/HomePage").then((module) => ({
-    default: module.HomePage,
-  }))
+    import("./pages/shop/HomePage").then((module) => ({
+        default: module.HomePage,
+    }))
 );
 
 const LoginPage = lazy(() =>
-  import("./pages/auth/LoginPage").then((module) => ({
-    default: module.LoginPage,
-  }))
+    import("./pages/auth/LoginPage").then((module) => ({
+        default: module.LoginPage,
+    }))
 );
 
 const RegisterPage = lazy(() =>
-  import("./pages/auth/RegisterPage").then((module) => ({
-    default: module.RegisterPage,
-  }))
+    import("./pages/auth/RegisterPage").then((module) => ({
+        default: module.RegisterPage,
+    }))
 );
 
 const ForgotPasswordPage = lazy(() =>
-  import("./pages/auth/ForgotPassword").then((module) => ({
-    default: module.ForgotPasswordPage,
-  }))
+    import("./pages/auth/ForgotPassword").then((module) => ({
+        default: module.ForgotPasswordPage,
+    }))
 );
 
 const ReturnsPage = lazy(() =>
-  import("./pages/info/ReturnsPage").then((module) => ({
-    default: module.ReturnsPage,
-  }))
+    import("./pages/info/ReturnsPage").then((module) => ({
+        default: module.ReturnsPage,
+    }))
 );
 
 const AboutPage = lazy(() =>
-  import("./pages/info/AboutPage").then((module) => ({
-    default: module.AboutPage,
-  }))
+    import("./pages/info/AboutPage").then((module) => ({
+        default: module.AboutPage,
+    }))
 );
 
 const PrivacyPage = lazy(() =>
-  import("./pages/info/PrivacyPage").then((module) => ({
-    default: module.PrivacyPage,
-  }))
+    import("./pages/info/PrivacyPage").then((module) => ({
+        default: module.PrivacyPage,
+    }))
 );
 
 const CheckoutPage = lazy(() =>
-  import("./pages/shop/CheckoutPage").then((module) => ({
-    default: module.CheckoutPage,
-  }))
+    import("./pages/shop/CheckoutPage").then((module) => ({
+        default: module.CheckoutPage,
+    }))
+);
+
+const ContactPage = lazy(() =>
+    import("./pages/info/ContactPage").then((module) => ({
+        default: module.ContactPage,
+    }))
+);
+
+const LocationPage = lazy(() =>
+    import("./pages/info/LocationPage").then((module) => ({
+        default: module.LocationPage,
+    }))
+);
+
+const SupportPage = lazy(() =>
+    import("./pages/info/SupportPage").then((module) => ({
+        default: module.SupportPage,
+    }))
+);
+
+const FaqPage = lazy(() =>
+    import("./pages/info/FaqPage").then((module) => ({
+        default: module.FaqPage,
+    }))
+);
+
+const TermsPage = lazy(() =>
+    import("./pages/info/TermsPage").then((module) => ({
+        default: module.TermsPage,
+    }))
 );
 
 export function App() {
-  return (
-    <Suspense fallback={<PageLoader />}>
-      <ScrollToTop />
+    return (
+        <Suspense fallback={<PageLoader />}>
+            <ScrollToTop />
 
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
+            <Routes>
+                <Route path="/" element={<Layout />}>
+                    <Route index element={<HomePage />} />
 
-          <Route path="category/:category" element={<CategoryPage />} />
+                    <Route path="category/:category" element={<CategoryPage />} />
 
-          <Route path="cart" element={<CartPage />} />
+                    <Route path="cart" element={<CartPage />} />
 
-          <Route path="history" element={<HistoryPage />} />
+                    <Route path="history" element={<HistoryPage />} />
 
-          <Route path="returns" element={<ReturnsPage />} />
+                    <Route path="returns" element={<ReturnsPage />} />
 
-          <Route path="admin" element={<AdminPage />} />
+                    <Route path="admin" element={<AdminPage />} />
 
-          <Route path="login" element={<LoginPage />} />
+                    <Route path="login" element={<LoginPage />} />
 
-          <Route path="register" element={<RegisterPage />} />
+                    <Route path="register" element={<RegisterPage />} />
 
-          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="forgot-password" element={<ForgotPasswordPage />} />
 
-          <Route path="about" element={<AboutPage />} />
+                    <Route path="about" element={<AboutPage />} />
 
-          <Route path="privacy" element={<PrivacyPage />} />
+                    <Route path="privacy" element={<PrivacyPage />} />
 
-          <Route path="checkout" element={<CheckoutPage />} />
-        </Route>
+                    <Route path="checkout" element={<CheckoutPage />} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
-  );
+                    <Route path="contact" element={<ContactPage />} />
+
+                    <Route path="location" element={<LocationPage />} />
+
+                    <Route path="support" element={<SupportPage />} />
+
+                    <Route path="faq" element={<FaqPage />} />
+
+                    <Route path="terms" element={<TermsPage />} />
+                </Route>
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </Suspense>
+    );
 }

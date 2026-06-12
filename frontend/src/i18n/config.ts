@@ -5,23 +5,25 @@ import { en } from "./locales/en";
 import { es } from "./locales/es";
 import { fr } from "./locales/fr";
 
-const STORAGE_KEY = "eagle_lang";
+const STORAGE_KEY = "sprint_lang";
 
 const saved =
-  typeof localStorage !== "undefined"
-    ? localStorage.getItem(STORAGE_KEY)
-    : null;
+    typeof localStorage !== "undefined"
+        ? localStorage.getItem(STORAGE_KEY)
+        : null;
 
 void i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: en },
     es: { translation: es },
+    en: { translation: en },
     fr: { translation: fr },
     de: { translation: de },
   },
-  lng: saved ?? "en",
-  fallbackLng: "en",
-  interpolation: { escapeValue: false },
+  lng: saved ?? "es",
+  fallbackLng: "es",
+  interpolation: {
+    escapeValue: false,
+  },
 });
 
 export function persistLanguage(lng: string) {
