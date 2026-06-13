@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: sprint-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: db_sprint
+      POSTGRES_USER: matezepam
+      POSTGRES_PASSWORD: "351759"
+    ports:
+      - "5433:5432"
+    volumes:
+      - sprint_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  sprint_postgres_data:

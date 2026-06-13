@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import { Layout } from "./components/layout/Layout";
 import { PageLoader } from "./components/common/PageLoader";
@@ -151,6 +152,8 @@ export function App() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+
+            <SpeedInsights />
         </Suspense>
     );
 }
