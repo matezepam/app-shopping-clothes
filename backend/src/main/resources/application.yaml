@@ -22,3 +22,8 @@ spring:
 
 server:
   port: 8080
+
+security:
+  jwt:
+    secret: "sprint-backend-secret-key-for-jwt-authentication-2026-secure"
+    expiration-ms: 86400000

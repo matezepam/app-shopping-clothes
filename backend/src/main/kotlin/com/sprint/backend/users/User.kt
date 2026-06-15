@@ -19,25 +19,25 @@ class User(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
 
-    @Column(name = "first_name", nullable = false)
+    @Column(name = "first_name", nullable = false, length = 100)
     val firstName: String,
 
-    @Column(name = "last_name", nullable = false)
+    @Column(name = "last_name", nullable = false, length = 100)
     val lastName: String,
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 150)
     val email: String,
 
-    @Column(nullable = false)
+    @Column(name = "password_hash", nullable = false, length = 255)
     val password: String,
 
-    @Column
+    @Column(length = 30)
     val phone: String? = null,
 
-    @Column
+    @Column(length = 100)
     val country: String? = null,
 
-    @Column
+    @Column(length = 30)
     val gender: String? = null,
 
     @Column
@@ -51,7 +51,7 @@ class User(
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-        name = "user_roles",
+        name = "users_roles",
         joinColumns = [JoinColumn(name = "user_id")],
         inverseJoinColumns = [JoinColumn(name = "role_id")]
     )
