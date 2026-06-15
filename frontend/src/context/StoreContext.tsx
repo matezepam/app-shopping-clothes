@@ -19,8 +19,10 @@ import type {
 import { products as catalog } from "../data/products";
 
 const TOKEN_KEY = "eagle_token";
+const USER_KEY = "eagle_user";
 const CURRENCY_KEY = "eagle_currency";
 const WISHLIST_KEY = "eagle_wishlist";
+const CART_KEY = "eagle_cart";
 
 type StoreContextValue = {
   user: User | null;
@@ -73,42 +75,63 @@ function readToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+function readStoredUser(): User | null {
+  if (typeof localStorage === "undefined") return null;
+
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+}
+
 function readCurrency(): CurrencyCode {
   if (typeof localStorage === "undefined") return "USD";
+
   const c = localStorage.getItem(CURRENCY_KEY) as CurrencyCode | null;
   return c === "EUR" || c === "GBP" ? c : "USD";
 }
 
+function readCart(): CartItem[] {
+  if (typeof localStorage === "undefined") return [];
+
+  try {
+    const raw = localStorage.getItem(CART_KEY);
+    return raw ? (JSON.parse(raw) as CartItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function readWishlist(): string[] {
+  if (typeof localStorage === "undefined") return [];
+
+  try {
+    const raw = localStorage.getItem(WISHLIST_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => readToken());
-  const [user, setUser] = useState<User | null>(null);
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const raw = localStorage.getItem("eagle_cart");
-      return raw ? (JSON.parse(raw) as CartItem[]) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [user, setUser] = useState<User | null>(() => readStoredUser());
+  const [cart, setCart] = useState<CartItem[]>(() => readCart());
   const [currency, setCurrencyState] = useState<CurrencyCode>(() =>
     readCurrency(),
   );
   const [orders, setOrders] = useState<Order[]>([]);
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
-  const [wishlistProductIds, setWishlistProductIds] = useState<string[]>(
-    () => {
-      try {
-        const raw = localStorage.getItem(WISHLIST_KEY);
-        return raw ? (JSON.parse(raw) as string[]) : [];
-      } catch {
-        return [];
-      }
-    },
+  const [wishlistProductIds, setWishlistProductIds] = useState<string[]>(() =>
+    readWishlist(),
   );
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem("eagle_cart", JSON.stringify(cart));
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
@@ -126,12 +149,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLoadingAuth(false);
       return;
     }
+
     try {
-      const { user: u } = await api.me(t);
-      setUser(u);
+      const storedUser = readStoredUser();
+
+      if (!storedUser) {
+        setUser(null);
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        setToken(null);
+        return;
+      }
+
+      setUser(storedUser);
     } catch {
       setUser(null);
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
       setToken(null);
     } finally {
       setLoadingAuth(false);
@@ -144,7 +178,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.login({ email, password });
+
     localStorage.setItem(TOKEN_KEY, res.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+
     setToken(res.token);
     setUser(res.user);
   }, []);
@@ -163,11 +200,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       gender: string;
     }) => {
       const res = await api.register({
-        name: `${data.firstName} ${data.lastName}`,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         password: data.password,
+        phone: data.phone,
+        country: data.country,
+        gender: data.gender,
+        age: data.age,
       });
+
       localStorage.setItem(TOKEN_KEY, res.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+
       setToken(res.token);
       setUser(res.user);
     },
@@ -176,6 +221,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
     setOrders([]);
@@ -185,6 +231,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addToCart = useCallback((productId: string, qty = 1) => {
     setCart((prev) => {
       const found = prev.find((i) => i.productId === productId);
+
       if (found) {
         return prev.map((i) =>
           i.productId === productId
@@ -192,6 +239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             : i,
         );
       }
+
       return [...prev, { productId, quantity: qty }];
     });
   }, []);
@@ -200,7 +248,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCart((prev) =>
       prev
         .map((i) =>
-          i.productId === productId ? { ...i, quantity: Math.max(0, quantity) } : i,
+          i.productId === productId
+            ? { ...i, quantity: Math.max(0, quantity) }
+            : i,
         )
         .filter((i) => i.quantity > 0),
     );
@@ -231,32 +281,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setOrders([]);
       return;
     }
-    const { orders: o } = await api.orders(token);
-    setOrders(o);
-  }, [token]);
 
-  const checkoutWishlist = useCallback(async () => {
-    if (!token) throw new Error("Login required");
-    if (wishlistProductIds.length === 0) throw new Error("Wishlist empty");
-    const { order } = await api.checkout(token, {
-      items: wishlistProductIds.map((productId) => ({
-        productId,
-        // Wishlist: compras 1 unidad por item (ajustable luego).
-        quantity: 1,
-      })),
-    });
-    clearWishlist();
-    await refreshOrders();
-    return order;
-  }, [token, wishlistProductIds, clearWishlist, refreshOrders]);
+    try {
+      const { orders: o } = await api.orders(token);
+      setOrders(o);
+    } catch {
+      setOrders([]);
+    }
+  }, [token]);
 
   const refreshReturns = useCallback(async () => {
     if (!token) {
       setReturns([]);
       return;
     }
-    const { returns: r } = await api.returnsList(token);
-    setReturns(r);
+
+    try {
+      const { returns: r } = await api.returnsList(token);
+      setReturns(r);
+    } catch {
+      setReturns([]);
+    }
   }, [token]);
 
   useEffect(() => {
@@ -264,17 +309,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void refreshReturns();
   }, [refreshOrders, refreshReturns]);
 
+  const checkoutWishlist = useCallback(async () => {
+    if (!token) throw new Error("Login required");
+    if (wishlistProductIds.length === 0) throw new Error("Wishlist empty");
+
+    const { order } = await api.checkout(token, {
+      items: wishlistProductIds.map((productId) => ({
+        productId,
+        quantity: 1,
+      })),
+    });
+
+    clearWishlist();
+    await refreshOrders();
+
+    return order;
+  }, [token, wishlistProductIds, clearWishlist, refreshOrders]);
+
   const checkout = useCallback(async () => {
     if (!token) throw new Error("Login required");
     if (cart.length === 0) throw new Error("Cart empty");
+
     const { order } = await api.checkout(token, {
       items: cart.map((c) => ({
         productId: c.productId,
         quantity: c.quantity,
       })),
     });
+
     clearCart();
     await refreshOrders();
+
     return order;
   }, [token, cart, clearCart, refreshOrders]);
 
@@ -286,6 +351,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       reason: string;
     }) => {
       if (!token) throw new Error("Login required");
+
       await api.createReturn(token, payload);
       await refreshReturns();
     },
@@ -327,6 +393,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       currency,
       orders,
       returns,
+      wishlistProductIds,
       loadingAuth,
       setCurrency,
       login,

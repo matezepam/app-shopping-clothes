@@ -1,13 +1,13 @@
 import type { Order, ReturnRequest, User } from "../types/store";
 
-const base = () =>
-  import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
+const base = () => import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
 
 async function request<T>(
   path: string,
   options: RequestInit & { token?: string | null } = {},
 ): Promise<T> {
   const { token, headers, ...rest } = options;
+
   const res = await fetch(`${base()}${path}`, {
     ...rest,
     headers: {
@@ -16,35 +16,53 @@ async function request<T>(
       ...headers,
     },
   });
+
   const data = (await res.json().catch(() => ({}))) as T & {
     error?: string;
     message?: string;
   };
+
   if (!res.ok) {
     const msg =
-      typeof data === "object" && data && "error" in data && data.error
-        ? String(data.error)
+      typeof data === "object" && data
+        ? data.error || data.message || res.statusText
         : res.statusText;
-    throw new Error(msg);
+
+    throw new Error(String(msg));
   }
+
   return data as T;
 }
 
 export const api = {
-  register: (body: { email: string; password: string; name: string }) =>
-    request<{ token: string; user: User }>("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+  register: (body: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    phone: string;
+    country: string;
+    gender: string;
+    age: number;
+  }) =>
+    request<{ token: string; tokenType: string; user: User }>(
+      "/api/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
 
   login: (body: { email: string; password: string }) =>
-    request<{ token: string; user: User }>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+    request<{ token: string; tokenType: string; user: User }>(
+      "/api/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
 
-  me: (token: string) =>
-    request<{ user: User }>("/api/auth/me", { token }),
+  me: (token: string) => request<{ user: User }>("/api/auth/me", { token }),
 
   orders: (token: string) =>
     request<{ orders: Order[] }>("/api/orders", { token }),

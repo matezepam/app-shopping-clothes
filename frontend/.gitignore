@@ -25,3 +25,7 @@ dist-ssr
 
 # Idea
 .idea/
+
+# ENV
+
+.env
