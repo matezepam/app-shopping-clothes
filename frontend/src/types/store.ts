@@ -10,12 +10,29 @@ export type Category =
 export type Gender = "male" | "female" | "non_binary" | "prefer_not_to_say";
 
 export type MaleSubcategory = "camisetas" | "gorras" | "bolsos";
-export type FemaleSubcategory = "camisetas" | "gorras" | "bolsos" | "bisuteria" | "joyas";
+
+export type FemaleSubcategory =
+  | "camisetas"
+  | "gorras"
+  | "bolsos"
+  | "bisuteria"
+  | "joyas";
+
 export type ProductSubcategory = MaleSubcategory | FemaleSubcategory;
 
-export type ProductColor = "negro" | "blanco" | "rojo" | "azul" | "verde" | "beige" | "gris" | "dorado" | "plateado" | "rosa";
+export type ProductColor =
+  | "negro"
+  | "blanco"
+  | "rojo"
+  | "azul"
+  | "verde"
+  | "beige"
+  | "gris"
+  | "dorado"
+  | "plateado"
+  | "rosa";
 
-export type UserRole = "user" | "admin";
+export type UserRole = "USER" | "ADMIN";
 
 export interface Product {
   id: string;
@@ -35,10 +52,17 @@ export interface CartItem {
 }
 
 export interface User {
-  id: string;
-  name: string;
+  id: number;
+  firstName: string;
+  lastName: string;
   email: string;
-  role: UserRole;
+  roles: UserRole[];
+  phone?: string | null;
+  country?: string | null;
+  gender?: string | null;
+  age?: number | null;
+  createdAt?: string | null;
+  avatarUrl?: string | null;
 }
 
 export type CurrencyCode = "USD" | "EUR" | "GBP";

@@ -108,6 +108,30 @@ const TermsPage = lazy(() =>
     }))
 );
 
+const ProfilePage = lazy(() =>
+    import("./pages/info/ProfilePage").then((module) => ({
+        default: module.default,
+    }))
+);
+
+const SettingsPage = lazy(() =>
+    import("./pages/info/SettingsPage").then((module) => ({
+        default: module.default,
+    }))
+);
+
+const FavoritesPage = lazy(() =>
+    import("./pages/info/FavoritesPage").then((module) => ({
+        default: module.default,
+    }))
+);
+
+const UserDashboardPage = lazy(() =>
+    import("./pages/info/UserDashboardPage").then((module) => ({
+        default: module.default,
+    }))
+);
+
 export function App() {
     return (
         <Suspense fallback={<PageLoader />}>
@@ -148,6 +172,14 @@ export function App() {
                     <Route path="faq" element={<FaqPage />} />
 
                     <Route path="terms" element={<TermsPage />} />
+
+                    <Route path="profile" element={<ProfilePage />} />
+
+                    <Route path="settings" element={<SettingsPage />} />
+
+                    <Route path="favorites" element={<FavoritesPage />} />
+
+                    <Route path="dashboard" element={<UserDashboardPage />} />
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" replace />} />
