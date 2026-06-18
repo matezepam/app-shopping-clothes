@@ -11,5 +11,11 @@ data class AuthUserResponse(
     val firstName: String,
     val lastName: String,
     val email: String,
-    val roles: List<String>
+    val phone: String?,
+    val country: String?,
+    val gender: String?,
+    val age: Int?,
+    val createdAt: String,
+    val roles: List<String>,
+    val avatarUrl: String? = null
 )

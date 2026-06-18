@@ -67,7 +67,13 @@ class AuthService(
                 firstName = user.firstName,
                 lastName = user.lastName,
                 email = user.email,
-                roles = user.roles.map { it.name }
+                phone = user.phone,
+                country = user.country,
+                gender = user.gender,
+                age = user.age,
+                createdAt = user.createdAt.toString(),
+                roles = user.roles.map { it.name },
+                avatarUrl = null
             )
         )
     }
