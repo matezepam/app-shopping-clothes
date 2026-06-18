@@ -401,7 +401,7 @@ export function Layout() {
                   <img
                     src={currentAvatar}
                     alt={user ? userFullName : "Login"}
-                    className="h-6 w-6 object-contain"
+                    className="h-full w-full object-cover"
                   />
                 </span>
 
@@ -460,7 +460,7 @@ export function Layout() {
                           <img
                             src={user.avatarUrl || userAvatar}
                             alt={userFullName}
-                            className="h-9 w-9 object-contain"
+                            className="h-full w-full object-cover"
                           />
                         </span>
 
@@ -484,15 +484,15 @@ export function Layout() {
                         onClick={() => setUserOpen(false)}
                         className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >
-                        {t("nav.profile", { defaultValue: "Profile" })}
+                        {t("nav.profile")}
                       </NavLink>
 
                       <NavLink
-                        to="/settings"
+                        to="/dashboard"
                         onClick={() => setUserOpen(false)}
                         className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >
-                        {t("nav.settings", { defaultValue: "Settings" })}
+                        {t("nav.dashboard")}
                       </NavLink>
 
                       <NavLink
@@ -509,6 +509,14 @@ export function Layout() {
                         className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         {t("nav.returns")}
+                      </NavLink>
+
+                      <NavLink
+                        to="/settings"
+                        onClick={() => setUserOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                      >
+                        {t("nav.settings")}
                       </NavLink>
 
                       {isAdmin ? (

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
+import java.time.LocalDate
 
 data class RegisterRequest(
     @field:NotBlank
@@ -29,6 +30,9 @@ data class RegisterRequest(
 
     @field:NotBlank
     val gender: String,
+
+    @field:NotNull
+    val birthDate: LocalDate,
 
     @field:NotNull
     @field:Min(13)

@@ -36,14 +36,24 @@ export type UserRole = "USER" | "ADMIN";
 
 export interface Product {
   id: string;
+  sku?: string;
   name: string;
+  collection?: "men" | "women" | "souvenirs";
   category: Category;
   concept: string;
   priceUsd: number;
+  compareAtPriceUsd?: number | null;
   image: string;
+  images?: string[];
   gender: "male" | "female";
   subcategory: ProductSubcategory;
   color: ProductColor;
+  sizes?: string[];
+  stock?: number;
+  status?: "active" | "draft" | "disabled";
+  description?: string | null;
+  story?: string | null;
+  createdAt?: string;
 }
 
 export interface CartItem {
@@ -60,9 +70,13 @@ export interface User {
   phone?: string | null;
   country?: string | null;
   gender?: string | null;
+  birthDate?: string | null;
   age?: number | null;
+  preferredLanguage?: string | null;
+  preferredCurrency?: CurrencyCode | null;
   createdAt?: string | null;
   avatarUrl?: string | null;
+  currentLocation?: string | null;
 }
 
 export type CurrencyCode = "USD" | "EUR" | "GBP";

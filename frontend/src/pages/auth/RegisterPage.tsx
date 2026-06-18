@@ -29,6 +29,23 @@ const countries = [
   { code: "BR", name: "Brazil", flag: "🇧🇷", dialCode: "55" },
 ] as const;
 
+function calculateAge(value: string) {
+  const birthDate = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDifference = today.getMonth() - birthDate.getMonth();
+  const hasNotHadBirthday =
+    monthDifference < 0 ||
+    (monthDifference === 0 && today.getDate() < birthDate.getDate());
+
+  if (hasNotHadBirthday) age -= 1;
+
+  return age;
+}
+
 export function RegisterPage() {
   const { t } = useTranslation();
   const { register } = useStore();
@@ -39,7 +56,7 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+593 ");
   const [countryCode, setCountryCode] = useState("EC");
-  const [age, setAge] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<Gender>("male");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -101,6 +118,9 @@ export function RegisterPage() {
               progressClass: "w-full bg-green-500",
             };
 
+  const calculatedAge = birthDate ? calculateAge(birthDate) : null;
+  const maxBirthDate = new Date().toISOString().slice(0, 10);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -120,7 +140,12 @@ export function RegisterPage() {
       return;
     }
 
-    if (Number(age) < 13) {
+    if (!birthDate || calculatedAge === null) {
+      setError(t("auth.birthDateRequired", "La fecha de nacimiento es obligatoria"));
+      return;
+    }
+
+    if (calculatedAge < 13) {
       setError(t("auth.ageTooYoung", "Debes tener al menos 13 años"));
       return;
     }
@@ -140,7 +165,8 @@ export function RegisterPage() {
         country: country.name,
         countryCode: country.code,
         countryFlag: country.flag,
-        age: Number(age),
+        birthDate,
+        age: calculatedAge,
         gender,
       });
 
@@ -162,11 +188,6 @@ export function RegisterPage() {
 
     setCountryCode(nextCode);
     setPhone(`+${nextCountry.dialCode} `);
-  };
-
-  const handleAgeChange = (value: string) => {
-    const onlyNumbers = value.replace(/\D/g, "");
-    setAge(onlyNumbers.slice(0, 2));
   };
 
   return (
@@ -305,7 +326,7 @@ export function RegisterPage() {
               </label>
 
               <label className="block text-sm font-semibold text-foreground">
-                <span>{t("auth.age", "Edad")}</span>
+                <span>{t("auth.birthDate", "Fecha de nacimiento")}</span>
 
                 <span className="mt-2 flex items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 shadow-sm transition focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10">
                   <CalendarDays
@@ -314,17 +335,20 @@ export function RegisterPage() {
                   />
 
                   <input
-                    type="number"
-                    min={13}
-                    max={99}
-                    inputMode="numeric"
+                    type="date"
+                    max={maxBirthDate}
                     className="w-full min-w-0 bg-transparent text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground"
-                    placeholder={t("auth.agePlaceholder", "Tu edad")}
-                    value={age}
-                    onChange={(e) => handleAgeChange(e.target.value)}
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
                     required
                   />
                 </span>
+
+                {calculatedAge !== null ? (
+                  <span className="mt-2 block text-xs font-semibold text-muted-foreground">
+                    {t("auth.calculatedAge", "Edad calculada")}: {calculatedAge}
+                  </span>
+                ) : null}
               </label>
             </div>
 

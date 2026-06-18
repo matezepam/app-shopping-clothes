@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useStore } from "../../context/StoreContext";
 import { formatMoney, fromUsd } from "../../lib/currency";
 
 const userAvatar = "/images/profile/login-avatar.svg";
 
 export default function UserDashboardPage() {
+  const { t, i18n } = useTranslation();
   const { user, orders, cart, wishlistProductIds, catalog, currency } = useStore();
 
   const totalSpentUsd = orders.reduce((sum, order) => sum + order.totalUsd, 0);
@@ -27,32 +29,34 @@ export default function UserDashboardPage() {
 
           <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-5">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white shadow-xl">
                 <img
                   src={user?.avatarUrl || userAvatar}
-                  alt="User avatar"
-                  className="h-14 w-14 object-contain"
+                  alt={t("dashboard.avatarAlt")}
+                  className="h-full w-full object-cover"
                 />
               </div>
 
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary">
-                  Dashboard
+                  {t("dashboard.eyebrow")}
                 </p>
                 <h1 className="mt-2 text-3xl font-bold md:text-4xl">
-                  Hola, {user?.firstName ?? "usuario"}
+                  {t("dashboard.greeting", {
+                    name: user?.firstName ?? t("dashboard.fallbackName"),
+                  })}
                 </h1>
                 <p className="mt-2 text-sm text-white/60">
-                  Revisa tus compras, favoritos y actividad reciente.
+                  {t("dashboard.subtitle")}
                 </p>
               </div>
             </div>
 
             <Link
-              to="/settings"
+              to="/profile"
               className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-bold text-[#0a0f1a] transition hover:-translate-y-0.5 hover:bg-accent hover:text-white"
             >
-              Configurar cuenta
+              {t("dashboard.configureAccount")}
             </Link>
           </div>
         </div>
@@ -60,42 +64,52 @@ export default function UserDashboardPage() {
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <article className="group rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-          <p className="text-sm font-medium text-neutral-500">Dinero gastado</p>
+          <p className="text-sm font-medium text-neutral-500">
+            {t("dashboard.stats.spent")}
+          </p>
           <p className="mt-3 text-3xl font-bold text-neutral-950">
             {formatMoney(fromUsd(totalSpentUsd, currency), currency)}
           </p>
           <p className="mt-2 text-xs text-neutral-400">
-            Total acumulado en tus pedidos.
+            {t("dashboard.stats.spentHint")}
           </p>
         </article>
 
         <article className="group rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-          <p className="text-sm font-medium text-neutral-500">Órdenes</p>
+          <p className="text-sm font-medium text-neutral-500">
+            {t("dashboard.stats.orders")}
+          </p>
           <p className="mt-3 text-3xl font-bold text-neutral-950">
             {orders.length}
           </p>
           <p className="mt-2 text-xs text-neutral-400">
-            Compras registradas en tu cuenta.
+            {t("dashboard.stats.ordersHint")}
           </p>
         </article>
 
         <article className="group rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-          <p className="text-sm font-medium text-neutral-500">Favoritos</p>
+          <p className="text-sm font-medium text-neutral-500">
+            {t("dashboard.stats.favorites")}
+          </p>
           <p className="mt-3 text-3xl font-bold text-neutral-950">
             {wishlistProductIds.length}
           </p>
           <p className="mt-2 text-xs text-neutral-400">
-            Productos guardados para después.
+            {t("dashboard.stats.favoritesHint")}
           </p>
         </article>
 
         <article className="group rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-          <p className="text-sm font-medium text-neutral-500">Carrito</p>
+          <p className="text-sm font-medium text-neutral-500">
+            {t("dashboard.stats.cart")}
+          </p>
           <p className="mt-3 text-3xl font-bold text-neutral-950">
             {totalItemsInCart}
           </p>
           <p className="mt-2 text-xs text-neutral-400">
-            {formatMoney(fromUsd(cartTotalUsd, currency), currency)} pendientes.
+            {t("dashboard.stats.cartHint", {
+              amount: formatMoney(fromUsd(cartTotalUsd, currency), currency),
+            })}
           </p>
         </article>
       </div>
@@ -105,10 +119,10 @@ export default function UserDashboardPage() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-neutral-950">
-                Compras recientes
+                {t("dashboard.recent.title")}
               </h2>
               <p className="mt-1 text-sm text-neutral-500">
-                Tus últimos movimientos aparecerán aquí.
+                {t("dashboard.recent.subtitle")}
               </p>
             </div>
 
@@ -116,7 +130,7 @@ export default function UserDashboardPage() {
               to="/history"
               className="rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700"
             >
-              Ver historial
+              {t("dashboard.recent.viewHistory")}
             </Link>
           </div>
 
@@ -124,10 +138,10 @@ export default function UserDashboardPage() {
             {recentOrders.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-neutral-300 p-8 text-center">
                 <p className="font-semibold text-neutral-700">
-                  Todavía no tienes compras.
+                  {t("dashboard.recent.emptyTitle")}
                 </p>
                 <p className="mt-1 text-sm text-neutral-500">
-                  Cuando realices un pedido, aparecerá en este panel.
+                  {t("dashboard.recent.emptyText")}
                 </p>
               </div>
             ) : (
@@ -138,10 +152,10 @@ export default function UserDashboardPage() {
                 >
                   <div>
                     <p className="font-semibold text-neutral-900">
-                      Pedido #{order.id}
+                      {t("dashboard.recent.orderNumber", { id: order.id })}
                     </p>
                     <p className="text-sm text-neutral-500">
-                      {new Date(order.createdAt).toLocaleDateString()}
+                      {new Date(order.createdAt).toLocaleDateString(i18n.language)}
                     </p>
                   </div>
 
@@ -160,9 +174,11 @@ export default function UserDashboardPage() {
         </section>
 
         <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-neutral-950">Accesos rápidos</h2>
+          <h2 className="text-xl font-bold text-neutral-950">
+            {t("dashboard.quick.title")}
+          </h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Gestiona tu cuenta desde aquí.
+            {t("dashboard.quick.subtitle")}
           </p>
 
           <div className="mt-6 grid gap-3">
@@ -170,28 +186,28 @@ export default function UserDashboardPage() {
               to="/favorites"
               className="rounded-2xl bg-neutral-50 p-4 font-semibold text-neutral-800 transition hover:-translate-y-0.5 hover:bg-neutral-950 hover:text-white"
             >
-              Mis favoritos
+              {t("dashboard.quick.favorites")}
             </Link>
 
             <Link
               to="/profile"
               className="rounded-2xl bg-neutral-50 p-4 font-semibold text-neutral-800 transition hover:-translate-y-0.5 hover:bg-neutral-950 hover:text-white"
             >
-              Mi perfil
+              {t("dashboard.quick.profile")}
             </Link>
 
             <Link
-              to="/settings"
+              to="/profile"
               className="rounded-2xl bg-neutral-50 p-4 font-semibold text-neutral-800 transition hover:-translate-y-0.5 hover:bg-neutral-950 hover:text-white"
             >
-              Configuraciones
+              {t("dashboard.quick.settings")}
             </Link>
 
             <Link
               to="/cart"
               className="rounded-2xl bg-primary/20 p-4 font-semibold text-neutral-950 transition hover:-translate-y-0.5 hover:bg-primary"
             >
-              Ver carrito
+              {t("dashboard.quick.cart")}
             </Link>
           </div>
         </section>

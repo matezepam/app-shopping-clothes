@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 import { X } from "lucide-react";
 import { ProductCard } from "../../components/product/ProductCard";
 import { useStore } from "../../context/StoreContext";
@@ -82,6 +84,8 @@ const getProductSizes = (product: unknown) => {
 };
 
 export function CategoryPage() {
+  const { t } = useTranslation();
+  const { category } = useParams();
   const { catalog } = useStore();
   const productsRef = useRef<HTMLDivElement | null>(null);
 
@@ -111,6 +115,14 @@ export function CategoryPage() {
   const filtered = useMemo(() => {
     return catalog.filter((product) => {
       const item = product as unknown as Record<string, unknown>;
+      const routeCategory = category ?? "men";
+      const matchesRoute =
+        routeCategory === "men" ||
+        routeCategory === "women" ||
+        routeCategory === "souvenirs"
+          ? (product.collection ?? product.gender) === routeCategory ||
+            product.category === routeCategory
+          : product.category === routeCategory;
 
       const productSubcategory = String(item.subcategory ?? "");
 
@@ -131,9 +143,15 @@ export function CategoryPage() {
         ? productSizes.length === 0 || productSizes.includes(selectedSize.toLowerCase())
         : true;
 
-      return matchesSubcategory && matchesColor && matchesPrice && matchesSize;
+      return (
+        matchesRoute &&
+        matchesSubcategory &&
+        matchesColor &&
+        matchesPrice &&
+        matchesSize
+      );
     });
-  }, [catalog, selectedSubcategories, selectedColor, selectedSize, priceRange]);
+  }, [catalog, category, selectedSubcategories, selectedColor, selectedSize, priceRange]);
 
   const availableColors = useMemo(() => {
     const uniqueColors = new Set(catalog.map((product) => product.color));
@@ -198,7 +216,7 @@ export function CategoryPage() {
       <aside className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-md lg:sticky lg:top-24 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-display text-xl font-bold text-foreground">
-            Filtros
+            {t("shop.filters.title")}
           </h2>
 
           {hasFilters && (
@@ -207,7 +225,7 @@ export function CategoryPage() {
               className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-foreground transition hover:bg-white/20"
             >
               <X size={14} />
-              Limpiar
+              {t("shop.filters.clear")}
             </button>
           )}
         </div>
@@ -215,7 +233,7 @@ export function CategoryPage() {
         <div className="space-y-6">
           <section>
             <h3 className="mb-3 font-display text-base font-bold text-foreground">
-              Categoría
+              {t("shop.filters.category")}
             </h3>
 
             <div className="space-y-2">
@@ -229,7 +247,7 @@ export function CategoryPage() {
                       : "border border-white/10 bg-white/5 text-foreground hover:bg-white/10"
                   }`}
                 >
-                  {SUBCATEGORY_LABELS[subcategory]}
+                  {t(`shop.subcategories.${subcategory}`, SUBCATEGORY_LABELS[subcategory])}
                 </button>
               ))}
             </div>
@@ -237,7 +255,7 @@ export function CategoryPage() {
 
           <section>
             <h3 className="mb-3 font-display text-base font-bold text-foreground">
-              Precio
+              {t("shop.filters.price")}
             </h3>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -249,7 +267,7 @@ export function CategoryPage() {
               <div className="space-y-4">
                 <div>
                   <p className="mb-2 text-xs font-semibold text-foreground/60">
-                    Precio mínimo
+                    {t("shop.filters.minPrice")}
                   </p>
 
                   <input
@@ -264,7 +282,7 @@ export function CategoryPage() {
 
                 <div>
                   <p className="mb-2 text-xs font-semibold text-foreground/60">
-                    Precio máximo
+                    {t("shop.filters.maxPrice")}
                   </p>
 
                   <input
@@ -282,7 +300,7 @@ export function CategoryPage() {
 
           <section>
             <h3 className="mb-3 font-display text-base font-bold text-foreground">
-              Talla
+              {t("shop.filters.size")}
             </h3>
 
             <div className="grid grid-cols-2 gap-2">
@@ -304,7 +322,7 @@ export function CategoryPage() {
 
           <section>
             <h3 className="mb-3 font-display text-base font-bold text-foreground">
-              Color
+              {t("shop.filters.color")}
             </h3>
 
             <div className="grid grid-cols-5 gap-3">
@@ -331,14 +349,14 @@ export function CategoryPage() {
           <p className="font-semibold text-foreground">
             {filtered.length}{" "}
             <span className="text-foreground/70">
-              {filtered.length === 1 ? "producto" : "productos"}
+              {filtered.length === 1 ? t("shop.product") : t("shop.products")}
             </span>
           </p>
 
           <p className="text-sm text-foreground/60">
-            Precio de{" "}
+            {t("shop.filters.priceFrom")}{" "}
             <span className="font-bold text-foreground">${priceRange.min}</span>{" "}
-            a{" "}
+            {t("shop.filters.priceTo")}{" "}
             <span className="font-bold text-foreground">${priceRange.max}</span>
           </p>
         </div>
@@ -346,10 +364,10 @@ export function CategoryPage() {
         {filtered.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/5 p-12 text-center">
             <p className="text-lg font-semibold text-foreground/70">
-              No hay productos disponibles en esta selección
+              {t("shop.empty.title")}
             </p>
             <p className="mt-2 text-sm text-foreground/50">
-              Intenta cambiar los filtros
+              {t("shop.empty.text")}
             </p>
           </div>
         ) : (

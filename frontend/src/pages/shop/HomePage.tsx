@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { categorySections, concepts } from "../../data/products";
+import { useStore } from "../../context/StoreContext";
+import { formatMoney, fromUsd } from "../../lib/currency";
 
 const productShowcase = [
   {
@@ -9,6 +11,7 @@ const productShowcase = [
     concept: "Oversized · Streetwear · Premium fit",
     price: "$48.99",
     category: "souvenirs",
+    productId: undefined,
     images: [
       "/images/products/jacket-front.png",
       "/images/products/jacket-side.png",
@@ -20,6 +23,7 @@ const productShowcase = [
     concept: "Cotton · Minimal print · Daily outfit",
     price: "$24.99",
     category: "souvenirs",
+    productId: undefined,
     images: [
       "/images/products/tshirt-front.png",
       "/images/products/tshirt-side.png",
@@ -31,6 +35,7 @@ const productShowcase = [
     concept: "Soft fleece · Relaxed · Modern culture",
     price: "$39.99",
     category: "souvenirs",
+    productId: undefined,
     images: [
       "/images/products/hoodie-front.png",
       "/images/products/hoodie-side.png",
@@ -77,13 +82,27 @@ const conceptImages = [
 
 export function HomePage() {
   const { t } = useTranslation();
+  const { catalog, currency } = useStore();
   const [activeAngle, setActiveAngle] = useState(0);
   const [activeProduct, setActiveProduct] = useState(0);
   const [activeConceptImage, setActiveConceptImage] = useState(0);
 
+  const showcaseProducts = useMemo(() => {
+    if (catalog.length === 0) return productShowcase;
+
+    return catalog.slice(0, 3).map((product) => ({
+      name: product.name,
+      concept: product.description ?? t(`concepts.${product.concept}.title`),
+      price: formatMoney(fromUsd(product.priceUsd, currency), currency),
+      category: product.collection ?? product.category,
+      productId: product.id,
+      images: product.images?.length ? product.images : [product.image],
+    }));
+  }, [catalog, currency, t]);
+
   const currentProduct = useMemo(
-    () => productShowcase[activeProduct],
-    [activeProduct]
+    () => showcaseProducts[activeProduct % showcaseProducts.length],
+    [activeProduct, showcaseProducts]
   );
 
   useEffect(() => {
@@ -96,12 +115,12 @@ export function HomePage() {
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      setActiveProduct((prev) => (prev + 1) % productShowcase.length);
+      setActiveProduct((prev) => (prev + 1) % showcaseProducts.length);
       setActiveAngle(0);
     }, 6900);
 
     return () => window.clearInterval(id);
-  }, []);
+  }, [showcaseProducts.length]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -249,7 +268,7 @@ export function HomePage() {
                 <div className="mt-5 flex items-center justify-between">
                   <p className="text-3xl font-black">{currentProduct.price}</p>
                   <Link
-                    to={`/category/${currentProduct.category}`}
+                    to={currentProduct.productId ? `/products/${currentProduct.productId}` : `/category/${currentProduct.category}`}
                     className="rounded-full bg-black px-5 py-3 text-xs font-black text-white transition hover:bg-accent"
                   >
                     Ver producto
@@ -275,7 +294,7 @@ export function HomePage() {
         </div>
 
         <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3">
-          {productShowcase.map((_, idx) => (
+          {showcaseProducts.map((_, idx) => (
             <button
               key={idx}
               type="button"

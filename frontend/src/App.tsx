@@ -24,6 +24,12 @@ const CategoryPage = lazy(() =>
     }))
 );
 
+const ProductDetailPage = lazy(() =>
+    import("./pages/shop/ProductDetailPage").then((module) => ({
+        default: module.ProductDetailPage,
+    }))
+);
+
 const HistoryPage = lazy(() =>
     import("./pages/info/HistoryPage").then((module) => ({
         default: module.HistoryPage,
@@ -51,6 +57,12 @@ const RegisterPage = lazy(() =>
 const ForgotPasswordPage = lazy(() =>
     import("./pages/auth/ForgotPassword").then((module) => ({
         default: module.ForgotPasswordPage,
+    }))
+);
+
+const ChangePasswordPage = lazy(() =>
+    import("./pages/auth/ChangePasswordPage").then((module) => ({
+        default: module.ChangePasswordPage,
     }))
 );
 
@@ -114,12 +126,6 @@ const ProfilePage = lazy(() =>
     }))
 );
 
-const SettingsPage = lazy(() =>
-    import("./pages/info/SettingsPage").then((module) => ({
-        default: module.default,
-    }))
-);
-
 const FavoritesPage = lazy(() =>
     import("./pages/info/FavoritesPage").then((module) => ({
         default: module.default,
@@ -128,6 +134,12 @@ const FavoritesPage = lazy(() =>
 
 const UserDashboardPage = lazy(() =>
     import("./pages/info/UserDashboardPage").then((module) => ({
+        default: module.default,
+    }))
+);
+
+const SettingsPage = lazy(() =>
+    import("./pages/info/SettingsPage").then((module) => ({
         default: module.default,
     }))
 );
@@ -143,6 +155,8 @@ export function App() {
 
                     <Route path="category/:category" element={<CategoryPage />} />
 
+                    <Route path="products/:id" element={<ProductDetailPage />} />
+
                     <Route path="cart" element={<CartPage />} />
 
                     <Route path="history" element={<HistoryPage />} />
@@ -156,6 +170,8 @@ export function App() {
                     <Route path="register" element={<RegisterPage />} />
 
                     <Route path="forgot-password" element={<ForgotPasswordPage />} />
+
+                    <Route path="change-password" element={<ChangePasswordPage />} />
 
                     <Route path="about" element={<AboutPage />} />
 

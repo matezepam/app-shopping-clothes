@@ -16,7 +16,8 @@ import type {
   ReturnRequest,
   User,
 } from "../types/store";
-import { products as catalog } from "../data/products";
+import { products as fallbackCatalog } from "../data/products";
+import i18n, { persistLanguage } from "../i18n/config";
 
 const TOKEN_KEY = "eagle_token";
 const USER_KEY = "eagle_user";
@@ -34,7 +35,26 @@ type StoreContextValue = {
   returns: ReturnRequest[];
   wishlistProductIds: string[];
   loadingAuth: boolean;
+  refreshProducts: () => Promise<void>;
   setCurrency: (c: CurrencyCode) => void;
+  updateProfile: (data: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    country?: string;
+    gender?: string;
+    age?: number;
+    preferredLanguage?: string;
+    preferredCurrency?: CurrencyCode;
+    currentLocation?: string;
+  }) => Promise<User>;
+  uploadAvatar: (file: File) => Promise<User>;
+  deleteAvatar: () => Promise<User>;
+  changePassword: (data: {
+    currentPassword: string;
+    newPassword: string;
+  }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (data: {
     firstName: string;
@@ -45,6 +65,7 @@ type StoreContextValue = {
     country: string;
     countryCode: string;
     countryFlag: string;
+    birthDate: string;
     age: number;
     gender: string;
   }) => Promise<void>;
@@ -94,6 +115,21 @@ function readCurrency(): CurrencyCode {
   return c === "EUR" || c === "GBP" ? c : "USD";
 }
 
+function isCurrencyCode(value: string | null | undefined): value is CurrencyCode {
+  return value === "USD" || value === "EUR" || value === "GBP";
+}
+
+function applyUserPreferences(user: User) {
+  if (user.preferredLanguage) {
+    void i18n.changeLanguage(user.preferredLanguage);
+    persistLanguage(user.preferredLanguage);
+  }
+
+  if (isCurrencyCode(user.preferredCurrency)) {
+    localStorage.setItem(CURRENCY_KEY, user.preferredCurrency);
+  }
+}
+
 function readCart(): CartItem[] {
   if (typeof localStorage === "undefined") return [];
 
@@ -123,6 +159,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<CurrencyCode>(() =>
     readCurrency(),
   );
+  const [catalog, setCatalog] = useState<Product[]>(fallbackCatalog);
   const [orders, setOrders] = useState<Order[]>([]);
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [wishlistProductIds, setWishlistProductIds] = useState<string[]>(() =>
@@ -161,7 +198,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setUser(storedUser);
+      const { user: currentUser } = await api.me(t);
+
+      localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+      setUser(currentUser);
+      applyUserPreferences(currentUser);
+      if (isCurrencyCode(currentUser.preferredCurrency)) {
+        setCurrencyState(currentUser.preferredCurrency);
+      }
     } catch {
       setUser(null);
       localStorage.removeItem(TOKEN_KEY);
@@ -181,6 +225,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem(TOKEN_KEY, res.token);
     localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+    applyUserPreferences(res.user);
+    if (isCurrencyCode(res.user.preferredCurrency)) {
+      setCurrencyState(res.user.preferredCurrency);
+    }
 
     setToken(res.token);
     setUser(res.user);
@@ -196,6 +244,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       country: string;
       countryCode: string;
       countryFlag: string;
+      birthDate: string;
       age: number;
       gender: string;
     }) => {
@@ -207,11 +256,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         phone: data.phone,
         country: data.country,
         gender: data.gender,
+        birthDate: data.birthDate,
         age: data.age,
       });
 
       localStorage.setItem(TOKEN_KEY, res.token);
       localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+      applyUserPreferences(res.user);
+      if (isCurrencyCode(res.user.preferredCurrency)) {
+        setCurrencyState(res.user.preferredCurrency);
+      }
 
       setToken(res.token);
       setUser(res.user);
@@ -227,6 +281,98 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setOrders([]);
     setReturns([]);
   }, []);
+
+  const refreshProducts = useCallback(async () => {
+    try {
+      const { products } = await api.products();
+      setCatalog(products);
+    } catch {
+      setCatalog(fallbackCatalog);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshProducts();
+  }, [refreshProducts]);
+
+  const updateProfile = useCallback(
+    async (data: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      country?: string;
+      gender?: string;
+      age?: number;
+      preferredLanguage?: string;
+      preferredCurrency?: CurrencyCode;
+      currentLocation?: string;
+    }) => {
+      if (!token) throw new Error("Login required");
+
+      const { token: nextToken, user: updatedUser } = await api.updateProfile(
+        token,
+        data,
+      );
+
+      if (nextToken) {
+        localStorage.setItem(TOKEN_KEY, nextToken);
+        setToken(nextToken);
+      }
+      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+      applyUserPreferences(updatedUser);
+
+      if (isCurrencyCode(updatedUser.preferredCurrency)) {
+        setCurrencyState(updatedUser.preferredCurrency);
+      }
+
+      setUser(updatedUser);
+
+      return updatedUser;
+    },
+    [token],
+  );
+
+  const persistUser = useCallback((updatedUser: User) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    applyUserPreferences(updatedUser);
+
+    if (isCurrencyCode(updatedUser.preferredCurrency)) {
+      setCurrencyState(updatedUser.preferredCurrency);
+    }
+
+    setUser(updatedUser);
+  }, []);
+
+  const uploadAvatar = useCallback(
+    async (file: File) => {
+      if (!token) throw new Error("Login required");
+
+      const { user: updatedUser } = await api.uploadAvatar(token, file);
+      persistUser(updatedUser);
+
+      return updatedUser;
+    },
+    [token, persistUser],
+  );
+
+  const deleteAvatar = useCallback(async () => {
+    if (!token) throw new Error("Login required");
+
+    const { user: updatedUser } = await api.deleteAvatar(token);
+    persistUser(updatedUser);
+
+    return updatedUser;
+  }, [token, persistUser]);
+
+  const changePassword = useCallback(
+    async (data: { currentPassword: string; newPassword: string }) => {
+      if (!token) throw new Error("Login required");
+
+      await api.changePassword(token, data);
+    },
+    [token],
+  );
 
   const addToCart = useCallback((productId: string, qty = 1) => {
     setCart((prev) => {
@@ -369,7 +515,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       returns,
       wishlistProductIds,
       loadingAuth,
+      refreshProducts,
       setCurrency,
+      updateProfile,
+      uploadAvatar,
+      deleteAvatar,
+      changePassword,
       login,
       register,
       logout,
@@ -391,11 +542,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       token,
       cart,
       currency,
+      catalog,
       orders,
       returns,
       wishlistProductIds,
       loadingAuth,
+      refreshProducts,
       setCurrency,
+      updateProfile,
+      uploadAvatar,
+      deleteAvatar,
+      changePassword,
       login,
       register,
       logout,

@@ -14,8 +14,12 @@ data class AuthUserResponse(
     val phone: String?,
     val country: String?,
     val gender: String?,
+    val birthDate: String?,
     val age: Int?,
+    val preferredLanguage: String,
+    val preferredCurrency: String,
     val createdAt: String,
     val roles: List<String>,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    val currentLocation: String? = null
 )

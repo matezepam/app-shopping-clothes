@@ -29,3 +29,5 @@ void i18n.use(initReactI18next).init({
 export function persistLanguage(lng: string) {
   localStorage.setItem(STORAGE_KEY, lng);
 }
+
+export default i18n;

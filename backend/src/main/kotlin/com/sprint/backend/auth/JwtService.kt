@@ -33,4 +33,13 @@ class JwtService(
             .signWith(signingKey())
             .compact()
     }
+
+    fun extractSubject(token: String): String {
+        return Jwts.parser()
+            .verifyWith(signingKey())
+            .build()
+            .parseSignedClaims(token)
+            .payload
+            .subject
+    }
 }

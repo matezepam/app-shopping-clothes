@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.JoinTable
 import jakarta.persistence.ManyToMany
 import jakarta.persistence.Table
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity
@@ -20,28 +21,43 @@ class User(
     val id: Long? = null,
 
     @Column(name = "first_name", nullable = false, length = 100)
-    val firstName: String,
+    var firstName: String,
 
     @Column(name = "last_name", nullable = false, length = 100)
-    val lastName: String,
+    var lastName: String,
 
     @Column(nullable = false, unique = true, length = 150)
-    val email: String,
+    var email: String,
 
     @Column(name = "password_hash", nullable = false, length = 255)
-    val password: String,
+    var password: String,
 
     @Column(length = 30)
-    val phone: String? = null,
+    var phone: String? = null,
 
     @Column(length = 100)
-    val country: String? = null,
+    var country: String? = null,
 
     @Column(length = 30)
-    val gender: String? = null,
+    var gender: String? = null,
 
     @Column
-    val age: Int? = null,
+    var age: Int? = null,
+
+    @Column(name = "birth_date")
+    var birthDate: LocalDate? = null,
+
+    @Column(name = "preferred_language", nullable = false, length = 5)
+    var preferredLanguage: String = "es",
+
+    @Column(name = "preferred_currency", nullable = false, length = 3)
+    var preferredCurrency: String = "USD",
+
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    var avatarUrl: String? = null,
+
+    @Column(name = "current_location", length = 255)
+    var currentLocation: String? = null,
 
     @Column(nullable = false)
     val enabled: Boolean = true,

@@ -27,7 +27,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <Link to={`/category/${product.category}#${product.id}`} className="block">
+      <Link to={`/products/${product.id}`} className="block">
         <div className="relative aspect-square overflow-hidden rounded-[28px] bg-muted">
           {galleryImages.map((img, index) => (
             <img
@@ -89,10 +89,10 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-          {fullProduct.shortDescription ??
-            (storyText === storyKey
-              ? t(`concepts.${product.concept}.desc`)
-              : storyText)}
+            {fullProduct.shortDescription ??
+            product.description ??
+            product.story ??
+            (storyText === storyKey ? t(`concepts.${product.concept}.desc`) : storyText)}
         </p>
 
         <div className="mt-1 flex items-center justify-between gap-3">

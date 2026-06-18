@@ -1,145 +1,322 @@
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
+import {
+  Laptop,
+  LockKeyhole,
+  Mail,
+  MapPin,
+  Navigation,
+  Save,
+  ShieldCheck,
+} from "lucide-react";
 import { useStore } from "../../context/StoreContext";
 
-const userAvatar = "/images/profile/login-avatar.svg";
-
 export default function SettingsPage() {
-  const { user, currency, setCurrency } = useStore();
+  const { t } = useTranslation();
+  const { user, updateProfile } = useStore();
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [currentLocation, setCurrentLocation] = useState(
+    user?.currentLocation ?? "",
+  );
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const deviceLabel = useMemo(() => {
+    if (typeof navigator === "undefined") return t("settings.devices.unknown");
+
+    const platform = navigator.platform || t("settings.devices.unknown");
+    const browser = navigator.userAgent.includes("Firefox")
+      ? "Firefox"
+      : navigator.userAgent.includes("Edg")
+        ? "Edge"
+        : navigator.userAgent.includes("Chrome")
+          ? "Chrome"
+          : navigator.userAgent.includes("Safari")
+            ? "Safari"
+            : t("settings.devices.browser");
+
+    return `${browser} · ${platform}`;
+  }, [t]);
+
+  if (!user) {
+    return (
+      <section className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 text-primary">
+          <ShieldCheck size={34} />
+        </div>
+
+        <h1 className="mt-6 text-3xl font-bold text-neutral-950">
+          {t("profile.authRequired.title")}
+        </h1>
+
+        <p className="mt-3 text-neutral-500">
+          {t("profile.authRequired.text")}
+        </p>
+
+        <Link
+          to="/login"
+          className="mt-6 rounded-full bg-neutral-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-neutral-700"
+        >
+          {t("profile.authRequired.cta")}
+        </Link>
+      </section>
+    );
+  }
+
+  const saveEmail = async () => {
+    setMessage(null);
+
+    if (!email.trim()) {
+      setMessage({ type: "error", text: t("settings.status.emailRequired") });
+      return;
+    }
+
+    setSavingEmail(true);
+
+    try {
+      await updateProfile({ email: email.trim() });
+      setMessage({ type: "success", text: t("settings.status.emailSaved") });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error ? error.message : t("settings.status.saveError"),
+      });
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const saveLocation = async () => {
+    setMessage(null);
+    setSavingLocation(true);
+
+    try {
+      await updateProfile({ currentLocation: currentLocation.trim() });
+      setMessage({
+        type: "success",
+        text: t("settings.status.locationSaved"),
+      });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error ? error.message : t("settings.status.saveError"),
+      });
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const detectLocation = () => {
+    setMessage(null);
+
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setMessage({
+        type: "error",
+        text: t("settings.status.locationUnsupported"),
+      });
+      return;
+    }
+
+    setLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude.toFixed(6);
+        const lng = position.coords.longitude.toFixed(6);
+        setCurrentLocation(`${lat}, ${lng}`);
+        setMessage({
+          type: "success",
+          text: t("settings.status.locationDetected"),
+        });
+        setLocating(false);
+      },
+      () => {
+        setMessage({
+          type: "error",
+          text: t("settings.status.locationDenied"),
+        });
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
 
   return (
-    <section className="animate-fade-up space-y-8">
-      <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary">
-          Configuraciones
+    <section className="mx-auto grid w-full max-w-5xl animate-fade-up gap-6">
+      <div className="rounded-[2rem] bg-[#0a0f1a] p-8 text-white shadow-2xl shadow-black/15">
+        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">
+          {t("settings.eyebrow")}
         </p>
-        <h1 className="mt-3 text-3xl font-bold text-neutral-950">
-          Preferencias de cuenta
-        </h1>
-        <p className="mt-2 max-w-2xl text-neutral-500">
-          Personaliza tu experiencia en Sprint. Algunas opciones son visuales por
-          ahora y luego las conectaremos con el backend.
+        <h1 className="mt-2 text-3xl font-bold">{t("settings.title")}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+          {t("settings.subtitle")}
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <aside className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col items-center text-center">
-            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-neutral-100 shadow-inner">
-              <img
-                src={user?.avatarUrl || userAvatar}
-                alt="Avatar"
-                className="h-20 w-20 object-contain"
-              />
+      {message ? (
+        <p
+          className={[
+            "rounded-2xl px-4 py-3 text-sm font-semibold",
+            message.type === "success"
+              ? "border border-green-200 bg-green-50 text-green-700"
+              : "border border-red-200 bg-red-50 text-red-600",
+          ].join(" ")}
+        >
+          {message.text}
+        </p>
+      ) : null}
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-neutral-950">
+              <Mail size={22} />
             </div>
+            <div>
+              <h2 className="text-xl font-bold text-neutral-950">
+                {t("settings.email.title")}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-neutral-500">
+                {t("settings.email.text")}
+              </p>
+            </div>
+          </div>
 
-            <h2 className="mt-4 text-xl font-bold text-neutral-950">
-              {user?.firstName} {user?.lastName}
-            </h2>
+          <label className="mt-5 block space-y-2">
+            <span className="text-sm font-semibold text-neutral-600">
+              {t("settings.email.label")}
+            </span>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-primary"
+            />
+          </label>
 
-            <p className="mt-1 text-sm text-neutral-500">{user?.email}</p>
+          <button
+            type="button"
+            disabled={savingEmail}
+            onClick={() => void saveEmail()}
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-primary hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Save size={17} />
+            {savingEmail ? t("settings.saving") : t("settings.email.save")}
+          </button>
+        </section>
+
+        <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-neutral-950">
+              <LockKeyhole size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-neutral-950">
+                {t("settings.password.title")}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-neutral-500">
+                {t("settings.password.text")}
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/change-password"
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-primary hover:text-neutral-950"
+          >
+            <LockKeyhole size={17} />
+            {t("settings.password.cta")}
+          </Link>
+        </section>
+
+        <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-neutral-950">
+              <Laptop size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-neutral-950">
+                {t("settings.devices.title")}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-neutral-500">
+                {t("settings.devices.text")}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <p className="text-sm font-bold text-neutral-950">
+              {t("settings.devices.current")}
+            </p>
+            <p className="mt-1 text-sm text-neutral-500">{deviceLabel}</p>
+            <span className="mt-3 inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+              {t("settings.devices.active")}
+            </span>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-neutral-950">
+              <MapPin size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-neutral-950">
+                {t("settings.location.title")}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-neutral-500">
+                {t("settings.location.text")}
+              </p>
+            </div>
+          </div>
+
+          <label className="mt-5 block space-y-2">
+            <span className="text-sm font-semibold text-neutral-600">
+              {t("settings.location.label")}
+            </span>
+            <input
+              type="text"
+              value={currentLocation}
+              onChange={(event) => setCurrentLocation(event.target.value)}
+              placeholder={t("settings.location.placeholder")}
+              className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-primary"
+            />
+          </label>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={locating}
+              onClick={detectLocation}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-neutral-200 px-5 py-3 text-sm font-bold text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Navigation size={17} />
+              {locating
+                ? t("settings.location.detecting")
+                : t("settings.location.detect")}
+            </button>
 
             <button
               type="button"
-              className="mt-5 rounded-full bg-neutral-950 px-5 py-2 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-neutral-700"
+              disabled={savingLocation}
+              onClick={() => void saveLocation()}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-primary hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Cambiar avatar
+              <Save size={17} />
+              {savingLocation
+                ? t("settings.saving")
+                : t("settings.location.save")}
             </button>
-
-            <p className="mt-3 text-xs text-neutral-400">
-              Disponible cuando agreguemos subida de imágenes.
-            </p>
           </div>
-        </aside>
-
-        <div className="space-y-6">
-          <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-neutral-950">
-              Información personal
-            </h2>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-neutral-600">
-                  Nombre
-                </span>
-                <input
-                  value={user?.firstName ?? ""}
-                  readOnly
-                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none"
-                />
-              </label>
-
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-neutral-600">
-                  Apellido
-                </span>
-                <input
-                  value={user?.lastName ?? ""}
-                  readOnly
-                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none"
-                />
-              </label>
-
-              <label className="space-y-2 md:col-span-2">
-                <span className="text-sm font-medium text-neutral-600">
-                  Correo electrónico
-                </span>
-                <input
-                  value={user?.email ?? ""}
-                  readOnly
-                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-neutral-950">
-              Preferencia de moneda
-            </h2>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              {(["USD", "EUR", "GBP"] as const).map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setCurrency(code)}
-                  className={[
-                    "rounded-full px-5 py-3 text-sm font-bold transition",
-                    currency === code
-                      ? "bg-neutral-950 text-white shadow-lg"
-                      : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200",
-                  ].join(" ")}
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-neutral-950">Seguridad</h2>
-
-            <div className="mt-5 grid gap-3">
-              <button
-                type="button"
-                className="rounded-2xl bg-neutral-50 px-4 py-4 text-left font-semibold text-neutral-800 transition hover:bg-neutral-950 hover:text-white"
-              >
-                Cambiar contraseña
-              </button>
-
-              <button
-                type="button"
-                className="rounded-2xl bg-neutral-50 px-4 py-4 text-left font-semibold text-neutral-800 transition hover:bg-neutral-950 hover:text-white"
-              >
-                Activar verificación adicional
-              </button>
-            </div>
-
-            <p className="mt-4 text-xs text-neutral-400">
-              Estas opciones se conectarán cuando agreguemos endpoints de cuenta.
-            </p>
-          </section>
-        </div>
+        </section>
       </div>
     </section>
   );

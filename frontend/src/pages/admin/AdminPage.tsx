@@ -1,639 +1,355 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Activity,
   AlertTriangle,
-  BadgeDollarSign,
-  Box,
   CheckCircle2,
   Edit3,
-  Eye,
   Package,
   Plus,
-  RefreshCcw,
   Search,
   ShoppingBag,
   Trash2,
   X,
 } from "lucide-react";
+import { api, type ProductPayload } from "../../lib/api";
 import { formatMoney } from "../../lib/currency";
+import { useStore } from "../../context/StoreContext";
+import type { Product } from "../../types/store";
 
-type ProductStatus = "active" | "draft" | "disabled";
-
-type AdminProduct = {
-  id: string;
-  sku: string;
-  name: string;
-  category: string;
-  price: number;
-  compareAtPrice?: number;
-  stock: number;
-  status: ProductStatus;
-  image: string;
-  sizes: string[];
-  colors: string[];
-  description: string;
-  createdAt: string;
-};
-
-type ReturnRequest = {
-  id: string;
-  userEmail: string;
-  orderId: string;
-  productName: string;
-  quantity: number;
-  reason: string;
-  status: "pending" | "approved" | "rejected" | "refunded";
-};
-
-const initialProducts: AdminProduct[] = [
-  {
-    id: "black-oversized-hoodie",
-    sku: "HD-BLK-001",
-    name: "Black Oversized Hoodie",
-    category: "Hoodies",
-    price: 59.99,
-    compareAtPrice: 79.99,
-    stock: 18,
-    status: "active",
-    image:
-      "https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=800&auto=format&fit=crop",
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["Black", "Gray"],
-    description:
-      "Hoodie oversize de algodón premium con capucha ajustable y estilo urbano.",
-    createdAt: "2026-05-20",
-  },
-  {
-    id: "white-street-tshirt",
-    sku: "TS-WHT-014",
-    name: "White Street T-Shirt",
-    category: "T-Shirts",
-    price: 29.99,
-    stock: 42,
-    status: "active",
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop",
-    sizes: ["S", "M", "L"],
-    colors: ["White"],
-    description:
-      "Camiseta blanca de corte regular, ideal para outfits casuales y streetwear.",
-    createdAt: "2026-05-18",
-  },
-  {
-    id: "eagle-classic-cap",
-    sku: "CP-EGL-009",
-    name: "Eagle Classic Cap",
-    category: "Caps",
-    price: 24.99,
-    stock: 7,
-    status: "active",
-    image:
-      "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?q=80&w=800&auto=format&fit=crop",
-    sizes: ["One Size"],
-    colors: ["Black", "Beige"],
-    description:
-      "Gorra clásica con ajuste trasero, bordado frontal y acabado premium.",
-    createdAt: "2026-05-14",
-  },
-  {
-    id: "urban-cargo-pants",
-    sku: "PT-CRG-021",
-    name: "Urban Cargo Pants",
-    category: "Pants",
-    price: 64.99,
-    compareAtPrice: 89.99,
-    stock: 3,
-    status: "draft",
-    image:
-      "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?q=80&w=800&auto=format&fit=crop",
-    sizes: ["M", "L", "XL"],
-    colors: ["Olive", "Black"],
-    description:
-      "Pantalón cargo con bolsillos laterales, corte relajado y tela resistente.",
-    createdAt: "2026-05-12",
-  },
-];
-
-const initialReturns: ReturnRequest[] = [
-  {
-    id: "ret-001",
-    userEmail: "mateo@example.com",
-    orderId: "ORD-92018",
-    productName: "Black Oversized Hoodie",
-    quantity: 1,
-    reason: "La talla no coincidió con lo esperado.",
-    status: "pending",
-  },
-  {
-    id: "ret-002",
-    userEmail: "cliente@example.com",
-    orderId: "ORD-83022",
-    productName: "White Street T-Shirt",
-    quantity: 2,
-    reason: "Cambio por otro color.",
-    status: "approved",
-  },
-];
-
-const emptyProduct: AdminProduct = {
-  id: "",
+const emptyForm: ProductPayload = {
   sku: "",
   name: "",
-  category: "T-Shirts",
-  price: 0,
-  compareAtPrice: undefined,
+  collection: "men",
+  category: "shirts",
+  subcategory: "camisetas",
+  concept: "galapagos",
+  priceUsd: 0,
+  compareAtPriceUsd: null,
+  image: "",
+  images: [],
+  description: "",
+  story: "",
+  gender: "male",
+  color: "negro",
+  sizes: ["S", "M", "L"],
   stock: 0,
   status: "active",
-  image: "",
-  sizes: ["S", "M", "L"],
-  colors: ["Black"],
-  description: "",
-  createdAt: new Date().toISOString().slice(0, 10),
 };
 
-function createSlug(value: string) {
+function listToText(value?: string[]) {
+  return value?.join(", ") ?? "";
+}
+
+function textToList(value: string) {
   return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-");
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
-function statusLabel(status: ProductStatus) {
-  if (status === "active") return "Activo";
-  if (status === "draft") return "Borrador";
-  return "Desactivado";
-}
-
-function returnStatusLabel(status: ReturnRequest["status"]) {
-  if (status === "pending") return "Pendiente";
-  if (status === "approved") return "Aprobado";
-  if (status === "rejected") return "Rechazado";
-  return "Reembolsado";
+function toForm(product: Product): ProductPayload {
+  return {
+    id: product.id,
+    sku: product.sku ?? "",
+    name: product.name,
+    collection: product.collection ?? "men",
+    category: product.category,
+    subcategory: product.subcategory,
+    concept: product.concept,
+    priceUsd: product.priceUsd,
+    compareAtPriceUsd: product.compareAtPriceUsd ?? null,
+    image: product.image,
+    images: product.images ?? [product.image],
+    description: product.description ?? "",
+    story: product.story ?? "",
+    gender: product.gender,
+    color: product.color,
+    sizes: product.sizes ?? [],
+    stock: product.stock ?? 0,
+    status: product.status ?? "active",
+  };
 }
 
 export function AdminPage() {
   const { t } = useTranslation();
-
-  const [products, setProducts] = useState<AdminProduct[]>(initialProducts);
-  const [returns, setReturns] = useState<ReturnRequest[]>(initialReturns);
+  const { user, token, refreshProducts } = useStore();
+  const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<"all" | ProductStatus>(
-    "all"
-  );
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [status, setStatus] = useState("all");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<AdminProduct>(emptyProduct);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState<ProductPayload>(emptyForm);
+  const [imagesText, setImagesText] = useState("");
+  const [sizesText, setSizesText] = useState("S, M, L");
+  const [message, setMessage] = useState("");
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesSearch =
-        product.name.toLowerCase().includes(search.toLowerCase()) ||
-        product.sku.toLowerCase().includes(search.toLowerCase()) ||
-        product.category.toLowerCase().includes(search.toLowerCase());
+  const isAdmin = user?.roles?.includes("ADMIN") ?? false;
 
-      const matchesStatus =
-        selectedStatus === "all" || product.status === selectedStatus;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [products, search, selectedStatus]);
-
-  const stats = useMemo(() => {
-    const activeProducts = products.filter((p) => p.status === "active").length;
-    const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
-    const lowStock = products.filter((p) => p.stock <= 8).length;
-    const inventoryValue = products.reduce(
-      (acc, p) => acc + p.price * p.stock,
-      0
-    );
-    const pendingReturns = returns.filter((r) => r.status === "pending").length;
-
-    return {
-      activeProducts,
-      totalStock,
-      lowStock,
-      inventoryValue,
-      pendingReturns,
-    };
-  }, [products, returns]);
-
-  const revenueByDay = [
-    { day: "Lun", value: 420 },
-    { day: "Mar", value: 690 },
-    { day: "Mié", value: 510 },
-    { day: "Jue", value: 880 },
-    { day: "Vie", value: 730 },
-    { day: "Sáb", value: 1100 },
-    { day: "Dom", value: 940 },
-  ];
-
-  const openCreateForm = () => {
-    setEditingId(null);
-    setForm(emptyProduct);
-    setIsFormOpen(true);
+  const loadProducts = async () => {
+    if (!token || !isAdmin) return;
+    const { products: nextProducts } = await api.adminProducts(token);
+    setProducts(nextProducts);
   };
 
-  const openEditForm = (product: AdminProduct) => {
+  useEffect(() => {
+    void loadProducts();
+  }, [token, isAdmin]);
+
+  const stats = useMemo(() => {
+    return {
+      active: products.filter((product) => product.status === "active").length,
+      stock: products.reduce((sum, product) => sum + (product.stock ?? 0), 0),
+      lowStock: products.filter((product) => (product.stock ?? 0) <= 8).length,
+      value: products.reduce(
+        (sum, product) => sum + product.priceUsd * (product.stock ?? 0),
+        0,
+      ),
+    };
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    return products.filter((product) => {
+      const query = search.toLowerCase();
+      const matchesSearch =
+        product.name.toLowerCase().includes(query) ||
+        product.id.toLowerCase().includes(query) ||
+        (product.sku ?? "").toLowerCase().includes(query);
+      const matchesStatus = status === "all" || product.status === status;
+      return matchesSearch && matchesStatus;
+    });
+  }, [products, search, status]);
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setImagesText("");
+    setSizesText("S, M, L");
+    setFormOpen(true);
+  };
+
+  const openEdit = (product: Product) => {
+    const nextForm = toForm(product);
     setEditingId(product.id);
-    setForm(product);
-    setIsFormOpen(true);
+    setForm(nextForm);
+    setImagesText(listToText(nextForm.images));
+    setSizesText(listToText(nextForm.sizes));
+    setFormOpen(true);
   };
 
   const closeForm = () => {
+    setFormOpen(false);
     setEditingId(null);
-    setForm(emptyProduct);
-    setIsFormOpen(false);
+    setForm(emptyForm);
   };
 
-  const saveProduct = () => {
-    const cleanName = form.name.trim();
+  const saveProduct = async () => {
+    if (!token) return;
+    setMessage("");
 
-    if (!cleanName || !form.sku.trim() || !form.category.trim()) {
-      alert("Completa nombre, SKU y categoría.");
-      return;
-    }
-
-    const productToSave: AdminProduct = {
+    const payload = {
       ...form,
-      id: editingId ?? createSlug(cleanName),
-      image:
-        form.image.trim() ||
-        "https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=800&auto=format&fit=crop",
-      price: Number(form.price),
-      compareAtPrice: form.compareAtPrice
-        ? Number(form.compareAtPrice)
-        : undefined,
+      images: textToList(imagesText).length ? textToList(imagesText) : [form.image],
+      sizes: textToList(sizesText),
+      priceUsd: Number(form.priceUsd),
+      compareAtPriceUsd: form.compareAtPriceUsd
+        ? Number(form.compareAtPriceUsd)
+        : null,
       stock: Number(form.stock),
-      sizes: form.sizes.length ? form.sizes : ["S", "M", "L"],
-      colors: form.colors.length ? form.colors : ["Black"],
     };
 
-    if (editingId) {
-      setProducts((current) =>
-        current.map((product) =>
-          product.id === editingId ? productToSave : product
-        )
+    try {
+      if (editingId) {
+        await api.updateProduct(token, editingId, payload);
+      } else {
+        await api.createProduct(token, payload);
+      }
+      await loadProducts();
+      await refreshProducts();
+      closeForm();
+      setMessage(t("adminProducts.status.saved"));
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("adminProducts.status.error"),
       );
-    } else {
-      setProducts((current) => [productToSave, ...current]);
     }
-
-    closeForm();
   };
 
-  const deleteProduct = (id: string) => {
-    const confirmed = window.confirm("¿Eliminar este producto de la demo?");
-
-    if (!confirmed) return;
-
-    setProducts((current) => current.filter((product) => product.id !== id));
+  const deleteProduct = async (id: string) => {
+    if (!token || !window.confirm(t("adminProducts.confirmDelete"))) return;
+    await api.deleteProduct(token, id);
+    await loadProducts();
+    await refreshProducts();
   };
 
-  const toggleProductStatus = (id: string) => {
-    setProducts((current) =>
-      current.map((product) =>
-        product.id === id
-          ? {
-              ...product,
-              status: product.status === "active" ? "disabled" : "active",
-            }
-          : product
-      )
+  const toggleProductStatus = async (product: Product) => {
+    if (!token) return;
+    await api.updateProduct(token, product.id, {
+      ...toForm(product),
+      status: product.status === "active" ? "disabled" : "active",
+    });
+    await loadProducts();
+    await refreshProducts();
+  };
+
+  if (!user || !isAdmin) {
+    return (
+      <section className="mx-auto flex min-h-[55vh] max-w-xl flex-col items-center justify-center text-center">
+        <AlertTriangle size={42} className="text-primary" />
+        <h1 className="mt-5 text-3xl font-black text-neutral-950">
+          {t("admin.forbidden")}
+        </h1>
+      </section>
     );
-  };
-
-  const updateReturnStatus = (
-    id: string,
-    status: ReturnRequest["status"]
-  ) => {
-    setReturns((current) =>
-      current.map((item) => (item.id === id ? { ...item, status } : item))
-    );
-  };
+  }
 
   return (
-    <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[2rem] border border-eagle-mist/25 bg-[#090f18] p-6 shadow-2xl shadow-black/25 sm:p-8">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-eagle-gold/10 blur-3xl" />
-          <div className="absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-eagle-mist/10 blur-3xl" />
-        </div>
-
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-7">
+      <section className="rounded-[2rem] bg-[#0a0f1a] p-8 text-white shadow-2xl shadow-black/15">
+        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">
+          {t("adminProducts.eyebrow")}
+        </p>
+        <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-eagle-mist/25 bg-eagle-night/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-eagle-sand/70">
-              <Activity size={15} className="text-eagle-gold" />
-              Admin Demo
-            </div>
-
-            <h1 className="font-display text-4xl font-bold text-eagle-foam sm:text-5xl">
-              {t("admin.title", "Panel administrativo")}
+            <h1 className="font-display text-4xl font-black">
+              {t("adminProducts.title")}
             </h1>
-
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-eagle-sand/75">
-              Vista de prueba para gestionar productos, stock, estados y
-              devoluciones. Todo funciona localmente con datos demo, sin backend
-              todavía.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+              {t("adminProducts.subtitle")}
             </p>
           </div>
-
           <button
             type="button"
-            onClick={openCreateForm}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-eagle-gold px-5 py-3 text-sm font-bold text-eagle-night shadow-lg shadow-eagle-gold/20 transition hover:-translate-y-0.5 hover:bg-eagle-foam"
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-white"
           >
             <Plus size={18} />
-            Agregar producto
+            {t("adminProducts.add")}
           </button>
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-3xl border border-eagle-mist/25 bg-eagle-deep/60 p-5 shadow-xl shadow-black/10">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-eagle-gold/12 text-eagle-gold">
-            <ShoppingBag size={22} />
-          </div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-eagle-sand/50">
-            Productos activos
-          </p>
-          <p className="mt-2 font-display text-3xl font-bold text-eagle-foam">
-            {stats.activeProducts}
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-eagle-mist/25 bg-eagle-deep/60 p-5 shadow-xl shadow-black/10">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-eagle-gold/12 text-eagle-gold">
-            <Box size={22} />
-          </div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-eagle-sand/50">
-            Stock total
-          </p>
-          <p className="mt-2 font-display text-3xl font-bold text-eagle-foam">
-            {stats.totalStock}
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-eagle-mist/25 bg-eagle-deep/60 p-5 shadow-xl shadow-black/10">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/12 text-red-300">
-            <AlertTriangle size={22} />
-          </div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-eagle-sand/50">
-            Stock bajo
-          </p>
-          <p className="mt-2 font-display text-3xl font-bold text-eagle-foam">
-            {stats.lowStock}
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-eagle-mist/25 bg-eagle-deep/60 p-5 shadow-xl shadow-black/10">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-300">
-            <BadgeDollarSign size={22} />
-          </div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-eagle-sand/50">
-            Valor inventario
-          </p>
-          <p className="mt-2 font-display text-3xl font-bold text-eagle-foam">
-            {formatMoney(stats.inventoryValue, "USD")}
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-eagle-mist/25 bg-eagle-deep/60 p-5 shadow-xl shadow-black/10">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-eagle-gold/12 text-eagle-gold">
-            <RefreshCcw size={22} />
-          </div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-eagle-sand/50">
-            Devoluciones
-          </p>
-          <p className="mt-2 font-display text-3xl font-bold text-eagle-foam">
-            {stats.pendingReturns}
-          </p>
-        </div>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[2rem] border border-eagle-mist/25 bg-eagle-deep/55 p-5 shadow-xl shadow-black/10">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-eagle-foam">
-                Ventas demo
-              </h2>
-              <p className="mt-1 text-sm text-eagle-sand/65">
-                Simulación visual para probar el dashboard.
+      <section className="grid gap-4 md:grid-cols-4">
+        {[
+          [ShoppingBag, t("adminProducts.stats.active"), stats.active],
+          [Package, t("adminProducts.stats.stock"), stats.stock],
+          [AlertTriangle, t("adminProducts.stats.low"), stats.lowStock],
+          [CheckCircle2, t("adminProducts.stats.value"), formatMoney(stats.value, "USD")],
+        ].map(([Icon, label, value]) => {
+          const IconComponent = Icon as typeof ShoppingBag;
+          return (
+            <div key={String(label)} className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+              <IconComponent size={22} className="text-accent" />
+              <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-neutral-400">
+                {String(label)}
+              </p>
+              <p className="mt-2 text-3xl font-black text-neutral-950">
+                {String(value)}
               </p>
             </div>
-
-            <span className="rounded-full border border-eagle-mist/25 bg-eagle-night/70 px-3 py-1 text-xs font-bold text-eagle-sand/70">
-              Últimos 7 días
-            </span>
-          </div>
-
-          <div className="flex h-56 items-end gap-3 rounded-3xl border border-eagle-mist/20 bg-eagle-night/45 p-5">
-            {revenueByDay.map((item) => {
-              const max = Math.max(...revenueByDay.map((day) => day.value));
-              const height = (item.value / max) * 100;
-
-              return (
-                <div
-                  key={item.day}
-                  className="flex flex-1 flex-col items-center justify-end gap-2"
-                >
-                  <div
-                    className="w-full max-w-10 rounded-t-2xl bg-eagle-gold/85 shadow-lg shadow-eagle-gold/10 transition hover:bg-eagle-foam"
-                    style={{ height: `${Math.max(height, 12)}%` }}
-                    title={`${item.day}: ${formatMoney(item.value, "USD")}`}
-                  />
-                  <span className="text-xs font-bold text-eagle-sand/55">
-                    {item.day}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="rounded-[2rem] border border-eagle-mist/25 bg-eagle-deep/55 p-5 shadow-xl shadow-black/10">
-          <h2 className="font-display text-2xl font-bold text-eagle-foam">
-            Productos con stock bajo
-          </h2>
-
-          <div className="mt-5 space-y-3">
-            {products
-              .filter((product) => product.stock <= 8)
-              .map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center gap-4 rounded-3xl border border-eagle-mist/20 bg-eagle-night/55 p-3"
-                >
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="h-16 w-16 rounded-2xl object-cover"
-                  />
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold text-eagle-foam">
-                      {product.name}
-                    </p>
-                    <p className="text-sm text-eagle-sand/60">
-                      {product.sku} · {product.category}
-                    </p>
-                  </div>
-
-                  <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-bold text-red-300">
-                    {product.stock} uds.
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
+          );
+        })}
       </section>
 
-      <section className="rounded-[2rem] border border-eagle-mist/25 bg-eagle-deep/55 p-5 shadow-xl shadow-black/10 sm:p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      {message ? (
+        <p className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-bold text-neutral-700">
+          {message}
+        </p>
+      ) : null}
+
+      <section className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="font-display text-2xl font-bold text-eagle-foam">
-              Gestión de productos
+            <h2 className="text-2xl font-black text-neutral-950">
+              {t("adminProducts.table.title")}
             </h2>
-            <p className="mt-1 text-sm text-eagle-sand/65">
-              Agrega, edita o elimina productos de prueba para validar la vista.
+            <p className="mt-1 text-sm text-neutral-500">
+              {t("adminProducts.table.subtitle")}
             </p>
           </div>
-
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex items-center gap-3 rounded-2xl border border-eagle-mist/25 bg-eagle-night/70 px-4 py-3">
-              <Search size={18} className="text-eagle-sand/50" />
+            <label className="flex items-center gap-3 rounded-2xl border border-neutral-200 px-4 py-3">
+              <Search size={18} className="text-neutral-400" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar producto..."
-                className="w-full bg-transparent text-sm font-semibold text-eagle-foam outline-none placeholder:text-eagle-sand/45 sm:w-60"
+                placeholder={t("adminProducts.search")}
+                className="bg-transparent text-sm font-semibold outline-none"
               />
-            </div>
-
+            </label>
             <select
-              value={selectedStatus}
-              onChange={(event) =>
-                setSelectedStatus(event.target.value as "all" | ProductStatus)
-              }
-              className="rounded-2xl border border-eagle-mist/25 bg-eagle-night/70 px-4 py-3 text-sm font-bold text-eagle-foam outline-none"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-bold outline-none"
             >
-              <option value="all">Todos</option>
-              <option value="active">Activos</option>
-              <option value="draft">Borradores</option>
-              <option value="disabled">Desactivados</option>
+              <option value="all">{t("adminProducts.statuses.all")}</option>
+              <option value="active">{t("adminProducts.statuses.active")}</option>
+              <option value="draft">{t("adminProducts.statuses.draft")}</option>
+              <option value="disabled">{t("adminProducts.statuses.disabled")}</option>
             </select>
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto rounded-3xl border border-eagle-mist/20">
+        <div className="mt-6 overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="bg-eagle-night/80 text-xs uppercase tracking-[0.16em] text-eagle-sand/50">
+            <thead className="border-b border-neutral-200 text-xs uppercase tracking-[0.16em] text-neutral-400">
               <tr>
-                <th className="p-4">Producto</th>
+                <th className="p-4">{t("adminProducts.table.product")}</th>
                 <th className="p-4">SKU</th>
-                <th className="p-4">Categoría</th>
-                <th className="p-4">Precio</th>
-                <th className="p-4">Stock</th>
-                <th className="p-4">Estado</th>
-                <th className="p-4 text-right">Acciones</th>
+                <th className="p-4">{t("adminProducts.table.collection")}</th>
+                <th className="p-4">{t("adminProducts.table.price")}</th>
+                <th className="p-4">{t("adminProducts.table.stock")}</th>
+                <th className="p-4">{t("adminProducts.table.status")}</th>
+                <th className="p-4 text-right">{t("adminProducts.table.actions")}</th>
               </tr>
             </thead>
-
             <tbody>
-              {filteredProducts.map((product) => (
-                <tr
-                  key={product.id}
-                  className="border-t border-eagle-mist/15 text-eagle-sand/80 transition hover:bg-eagle-night/35"
-                >
+              {filtered.map((product) => (
+                <tr key={product.id} className="border-b border-neutral-100">
                   <td className="p-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       <img
                         src={product.image}
-                        alt={product.name}
+                        alt=""
                         className="h-16 w-16 rounded-2xl object-cover"
                       />
-
                       <div>
-                        <p className="font-bold text-eagle-foam">
-                          {product.name}
-                        </p>
-                        <p className="mt-1 line-clamp-1 max-w-xs text-xs text-eagle-sand/55">
-                          {product.description}
-                        </p>
+                        <p className="font-black text-neutral-950">{product.name}</p>
+                        <p className="text-xs text-neutral-500">{product.id}</p>
                       </div>
                     </div>
                   </td>
-
                   <td className="p-4 font-mono text-xs">{product.sku}</td>
-                  <td className="p-4">{product.category}</td>
-
+                  <td className="p-4">{t(`categories.${product.collection ?? product.category}`)}</td>
+                  <td className="p-4 font-bold">{formatMoney(product.priceUsd, "USD")}</td>
+                  <td className="p-4">{product.stock}</td>
                   <td className="p-4">
-                    <div>
-                      <p className="font-bold text-eagle-foam">
-                        {formatMoney(product.price, "USD")}
-                      </p>
-
-                      {product.compareAtPrice ? (
-                        <p className="text-xs text-eagle-sand/45 line-through">
-                          {formatMoney(product.compareAtPrice, "USD")}
-                        </p>
-                      ) : null}
-                    </div>
-                  </td>
-
-                  <td className="p-4">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        product.stock <= 8
-                          ? "bg-red-500/15 text-red-300"
-                          : "bg-emerald-500/15 text-emerald-300"
-                      }`}
-                    >
-                      {product.stock} uds.
+                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-black text-neutral-700">
+                      {t(`adminProducts.statuses.${product.status ?? "active"}`)}
                     </span>
                   </td>
-
-                  <td className="p-4">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        product.status === "active"
-                          ? "bg-emerald-500/15 text-emerald-300"
-                          : product.status === "draft"
-                            ? "bg-eagle-gold/15 text-eagle-gold"
-                            : "bg-eagle-mist/10 text-eagle-sand/60"
-                      }`}
-                    >
-                      {statusLabel(product.status)}
-                    </span>
-                  </td>
-
                   <td className="p-4">
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
-                        onClick={() => toggleProductStatus(product.id)}
-                        className="rounded-xl border border-eagle-mist/20 bg-eagle-night/70 p-2 text-eagle-sand transition hover:text-eagle-gold"
-                        title="Activar / desactivar"
+                        onClick={() => void toggleProductStatus(product)}
+                        className="rounded-xl border border-neutral-200 p-2 transition hover:bg-neutral-100"
+                        title={t("adminProducts.toggle")}
                       >
-                        <Eye size={17} />
+                        <CheckCircle2 size={17} />
                       </button>
-
                       <button
                         type="button"
-                        onClick={() => openEditForm(product)}
-                        className="rounded-xl border border-eagle-mist/20 bg-eagle-night/70 p-2 text-eagle-sand transition hover:text-eagle-gold"
-                        title="Editar"
+                        onClick={() => openEdit(product)}
+                        className="rounded-xl border border-neutral-200 p-2 transition hover:bg-neutral-100"
+                        title={t("adminProducts.edit")}
                       >
                         <Edit3 size={17} />
                       </button>
-
                       <button
                         type="button"
-                        onClick={() => deleteProduct(product.id)}
-                        className="rounded-xl border border-red-400/20 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500/20"
-                        title="Eliminar"
+                        onClick={() => void deleteProduct(product.id)}
+                        className="rounded-xl border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
+                        title={t("adminProducts.delete")}
                       >
                         <Trash2 size={17} />
                       </button>
@@ -641,356 +357,233 @@ export function AdminPage() {
                   </td>
                 </tr>
               ))}
-
-              {filteredProducts.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="p-8 text-center text-eagle-sand/60"
-                  >
-                    No se encontraron productos.
-                  </td>
-                </tr>
-              ) : null}
             </tbody>
           </table>
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-eagle-mist/25 bg-eagle-deep/55 p-5 shadow-xl shadow-black/10 sm:p-6">
-        <h2 className="font-display text-2xl font-bold text-eagle-foam">
-          Devoluciones demo
-        </h2>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          {returns.map((item) => (
-            <article
-              key={item.id}
-              className="rounded-3xl border border-eagle-mist/20 bg-eagle-night/55 p-5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-eagle-foam">
-                    {item.productName}
-                  </p>
-                  <p className="mt-1 text-xs text-eagle-sand/55">
-                    {item.orderId} · {item.userEmail}
-                  </p>
-                </div>
-
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    item.status === "pending"
-                      ? "bg-eagle-gold/15 text-eagle-gold"
-                      : item.status === "approved"
-                        ? "bg-emerald-500/15 text-emerald-300"
-                        : item.status === "rejected"
-                          ? "bg-red-500/15 text-red-300"
-                          : "bg-sky-500/15 text-sky-300"
-                  }`}
-                >
-                  {returnStatusLabel(item.status)}
-                </span>
-              </div>
-
-              <p className="mt-4 text-sm leading-6 text-eagle-sand/75">
-                {item.reason}
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => updateReturnStatus(item.id, "approved")}
-                  className="rounded-xl bg-emerald-600/80 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-500"
-                >
-                  Aprobar
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => updateReturnStatus(item.id, "rejected")}
-                  className="rounded-xl bg-red-700/80 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600"
-                >
-                  Rechazar
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => updateReturnStatus(item.id, "refunded")}
-                  className="rounded-xl bg-eagle-gold px-3 py-2 text-xs font-bold text-eagle-night transition hover:bg-eagle-foam"
-                >
-                  Reembolsar
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {isFormOpen ? (
+      {formOpen ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-eagle-mist/25 bg-[#09111d] p-5 shadow-2xl shadow-black/40 sm:p-6">
-            <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-display text-3xl font-bold text-eagle-foam">
-                  {editingId ? "Editar producto" : "Agregar producto"}
+                <h2 className="text-3xl font-black text-neutral-950">
+                  {editingId ? t("adminProducts.form.edit") : t("adminProducts.form.create")}
                 </h2>
-
-                <p className="mt-2 text-sm text-eagle-sand/65">
-                  Este formulario es demo. Luego estos datos se enviarán al
-                  backend.
+                <p className="mt-1 text-sm text-neutral-500">
+                  {t("adminProducts.form.text")}
                 </p>
               </div>
-
               <button
                 type="button"
                 onClick={closeForm}
-                className="rounded-2xl border border-eagle-mist/20 bg-eagle-night/70 p-3 text-eagle-sand transition hover:text-eagle-foam"
+                className="rounded-2xl border border-neutral-200 p-3 transition hover:bg-neutral-100"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-              <div className="rounded-3xl border border-eagle-mist/20 bg-eagle-deep/55 p-4">
-                <div className="aspect-square overflow-hidden rounded-3xl bg-eagle-night">
+            <div className="mt-6 grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
+              <div>
+                <div className="aspect-square overflow-hidden rounded-[2rem] bg-neutral-100">
                   <img
-                    src={
-                      form.image ||
-                      "https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=800&auto=format&fit=crop"
-                    }
-                    alt="Vista previa"
+                    src={form.image || "/images/hero/galapagos.svg"}
+                    alt=""
                     className="h-full w-full object-cover"
                   />
                 </div>
-
-                <label className="mt-4 block text-sm font-bold text-eagle-foam">
-                  URL de imagen
-                  <input
-                    value={form.image}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        image: event.target.value,
-                      }))
-                    }
-                    placeholder="https://..."
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none placeholder:text-eagle-sand/40 focus:border-eagle-gold/50"
-                  />
-                </label>
-
-                <p className="mt-3 text-xs leading-5 text-eagle-sand/50">
-                  Para la demo puedes pegar una imagen de Unsplash. Luego se
-                  reemplaza por Cloudinary o subida real de archivos.
-                </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-bold text-eagle-foam">
-                  Nombre
-                  <input
-                    value={form.name}
+                {[
+                  ["name", t("adminProducts.form.name")],
+                  ["sku", "SKU"],
+                  ["image", t("adminProducts.form.image")],
+                  ["concept", t("adminProducts.form.concept")],
+                  ["subcategory", t("adminProducts.form.subcategory")],
+                  ["color", t("adminProducts.form.color")],
+                ].map(([key, label]) => (
+                  <label key={key} className="text-sm font-bold text-neutral-700">
+                    {label}
+                    <input
+                      value={String(form[key as keyof ProductPayload] ?? "")}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          [key]: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
+                    />
+                  </label>
+                ))}
+
+                <label className="text-sm font-bold text-neutral-700">
+                  {t("adminProducts.form.collection")}
+                  <select
+                    value={form.collection}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
+                      setForm((current) => ({ ...current, collection: event.target.value }))
                     }
-                    placeholder="Black Oversized Hoodie"
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none placeholder:text-eagle-sand/40 focus:border-eagle-gold/50"
-                  />
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="men">{t("categories.men")}</option>
+                    <option value="women">{t("categories.women")}</option>
+                    <option value="souvenirs">{t("categories.souvenirs")}</option>
+                  </select>
                 </label>
 
-                <label className="block text-sm font-bold text-eagle-foam">
-                  SKU
-                  <input
-                    value={form.sku}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        sku: event.target.value,
-                      }))
-                    }
-                    placeholder="HD-BLK-001"
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none placeholder:text-eagle-sand/40 focus:border-eagle-gold/50"
-                  />
-                </label>
-
-                <label className="block text-sm font-bold text-eagle-foam">
-                  Categoría
+                <label className="text-sm font-bold text-neutral-700">
+                  {t("adminProducts.form.category")}
                   <select
                     value={form.category}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        category: event.target.value,
-                      }))
+                      setForm((current) => ({ ...current, category: event.target.value }))
                     }
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none focus:border-eagle-gold/50"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
                   >
-                    <option value="T-Shirts">T-Shirts</option>
-                    <option value="Hoodies">Hoodies</option>
-                    <option value="Pants">Pants</option>
-                    <option value="Caps">Caps</option>
-                    <option value="Sneakers">Sneakers</option>
-                    <option value="Accessories">Accessories</option>
+                    {["shirts", "hoodies", "caps", "souvenirs", "art"].map((item) => (
+                      <option key={item} value={item}>
+                        {t(`categories.${item}`)}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
-                <label className="block text-sm font-bold text-eagle-foam">
-                  Estado
+                <label className="text-sm font-bold text-neutral-700">
+                  {t("adminProducts.form.gender")}
+                  <select
+                    value={form.gender}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, gender: event.target.value }))
+                    }
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="male">{t("profile.genders.male")}</option>
+                    <option value="female">{t("profile.genders.female")}</option>
+                  </select>
+                </label>
+
+                <label className="text-sm font-bold text-neutral-700">
+                  {t("adminProducts.form.status")}
                   <select
                     value={form.status}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        status: event.target.value as ProductStatus,
-                      }))
+                      setForm((current) => ({ ...current, status: event.target.value }))
                     }
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none focus:border-eagle-gold/50"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
                   >
-                    <option value="active">Activo</option>
-                    <option value="draft">Borrador</option>
-                    <option value="disabled">Desactivado</option>
+                    <option value="active">{t("adminProducts.statuses.active")}</option>
+                    <option value="draft">{t("adminProducts.statuses.draft")}</option>
+                    <option value="disabled">{t("adminProducts.statuses.disabled")}</option>
                   </select>
                 </label>
 
-                <label className="block text-sm font-bold text-eagle-foam">
-                  Precio
+                <label className="text-sm font-bold text-neutral-700">
+                  {t("adminProducts.form.price")}
                   <input
                     type="number"
-                    value={form.price}
+                    value={form.priceUsd}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        price: Number(event.target.value),
-                      }))
+                      setForm((current) => ({ ...current, priceUsd: Number(event.target.value) }))
                     }
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none focus:border-eagle-gold/50"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
                   />
                 </label>
 
-                <label className="block text-sm font-bold text-eagle-foam">
-                  Precio anterior
+                <label className="text-sm font-bold text-neutral-700">
+                  {t("adminProducts.form.compareAt")}
                   <input
                     type="number"
-                    value={form.compareAtPrice ?? ""}
+                    value={form.compareAtPriceUsd ?? ""}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        compareAtPrice: event.target.value
-                          ? Number(event.target.value)
-                          : undefined,
+                        compareAtPriceUsd: event.target.value ? Number(event.target.value) : null,
                       }))
                     }
-                    placeholder="Opcional"
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none placeholder:text-eagle-sand/40 focus:border-eagle-gold/50"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
                   />
                 </label>
 
-                <label className="block text-sm font-bold text-eagle-foam">
+                <label className="text-sm font-bold text-neutral-700">
                   Stock
                   <input
                     type="number"
                     value={form.stock}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        stock: Number(event.target.value),
-                      }))
+                      setForm((current) => ({ ...current, stock: Number(event.target.value) }))
                     }
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none focus:border-eagle-gold/50"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
                   />
                 </label>
 
-                <label className="block text-sm font-bold text-eagle-foam">
-                  Tallas
+                <label className="text-sm font-bold text-neutral-700 sm:col-span-2">
+                  {t("adminProducts.form.images")}
                   <input
-                    value={form.sizes.join(", ")}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        sizes: event.target.value
-                          .split(",")
-                          .map((item) => item.trim())
-                          .filter(Boolean),
-                      }))
-                    }
+                    value={imagesText}
+                    onChange={(event) => setImagesText(event.target.value)}
+                    placeholder="/img/a.jpg, /img/b.jpg"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
+                  />
+                </label>
+
+                <label className="text-sm font-bold text-neutral-700 sm:col-span-2">
+                  {t("adminProducts.form.sizes")}
+                  <input
+                    value={sizesText}
+                    onChange={(event) => setSizesText(event.target.value)}
                     placeholder="S, M, L, XL"
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none placeholder:text-eagle-sand/40 focus:border-eagle-gold/50"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
                   />
                 </label>
 
-                <label className="block text-sm font-bold text-eagle-foam sm:col-span-2">
-                  Colores
-                  <input
-                    value={form.colors.join(", ")}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        colors: event.target.value
-                          .split(",")
-                          .map((item) => item.trim())
-                          .filter(Boolean),
-                      }))
-                    }
-                    placeholder="Black, White, Gray"
-                    className="mt-2 w-full rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none placeholder:text-eagle-sand/40 focus:border-eagle-gold/50"
-                  />
-                </label>
-
-                <label className="block text-sm font-bold text-eagle-foam sm:col-span-2">
-                  Descripción
+                <label className="text-sm font-bold text-neutral-700 sm:col-span-2">
+                  {t("adminProducts.form.description")}
                   <textarea
-                    value={form.description}
+                    value={form.description ?? ""}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
+                      setForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                    rows={3}
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
+                  />
+                </label>
+
+                <label className="text-sm font-bold text-neutral-700 sm:col-span-2">
+                  {t("adminProducts.form.story")}
+                  <textarea
+                    value={form.story ?? ""}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, story: event.target.value }))
                     }
                     rows={4}
-                    placeholder="Descripción corta del producto..."
-                    className="mt-2 w-full resize-none rounded-2xl border border-eagle-mist/25 bg-eagle-night/80 px-4 py-3 text-sm text-eagle-foam outline-none placeholder:text-eagle-sand/40 focus:border-eagle-gold/50"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
                   />
                 </label>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex justify-end gap-3 border-t border-neutral-100 pt-5">
               <button
                 type="button"
                 onClick={closeForm}
-                className="rounded-2xl border border-eagle-mist/25 bg-eagle-night/70 px-5 py-3 text-sm font-bold text-eagle-sand transition hover:text-eagle-foam"
+                className="rounded-full border border-neutral-200 px-5 py-3 text-sm font-bold text-neutral-700 transition hover:bg-neutral-100"
               >
-                Cancelar
+                {t("profile.actions.cancel")}
               </button>
-
               <button
                 type="button"
-                onClick={saveProduct}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-eagle-gold px-5 py-3 text-sm font-bold text-eagle-night shadow-lg shadow-eagle-gold/20 transition hover:-translate-y-0.5 hover:bg-eagle-foam"
+                onClick={() => void saveProduct()}
+                className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-primary hover:text-neutral-950"
               >
                 <CheckCircle2 size={18} />
-                Guardar producto
+                {t("adminProducts.form.save")}
               </button>
             </div>
           </div>
         </div>
       ) : null}
-
-      <div className="rounded-3xl border border-eagle-mist/20 bg-eagle-deep/40 p-5 text-sm leading-7 text-eagle-sand/70">
-        <div className="mb-2 flex items-center gap-2 font-bold text-eagle-foam">
-          <Package size={18} className="text-eagle-gold" />
-          Nota para producción
-        </div>
-        Ahora esto está en memoria con <strong>useState</strong>. Cuando
-        conectes backend, este mismo diseño se puede mantener y solo cambias
-        las acciones por llamadas reales tipo{" "}
-        <strong>GET /products</strong>, <strong>POST /products</strong>,{" "}
-        <strong>PUT /products/:id</strong> y{" "}
-        <strong>DELETE /products/:id</strong>.
-      </div>
     </div>
   );
 }
