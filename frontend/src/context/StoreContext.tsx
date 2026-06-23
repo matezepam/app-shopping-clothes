@@ -109,14 +109,7 @@ function readStoredUser(): User | null {
 }
 
 function readCurrency(): CurrencyCode {
-  if (typeof localStorage === "undefined") return "USD";
-
-  const c = localStorage.getItem(CURRENCY_KEY) as CurrencyCode | null;
-  return c === "EUR" || c === "GBP" ? c : "USD";
-}
-
-function isCurrencyCode(value: string | null | undefined): value is CurrencyCode {
-  return value === "USD" || value === "EUR" || value === "GBP";
+  return "USD";
 }
 
 function applyUserPreferences(user: User) {
@@ -125,9 +118,7 @@ function applyUserPreferences(user: User) {
     persistLanguage(user.preferredLanguage);
   }
 
-  if (isCurrencyCode(user.preferredCurrency)) {
-    localStorage.setItem(CURRENCY_KEY, user.preferredCurrency);
-  }
+  localStorage.setItem(CURRENCY_KEY, "USD");
 }
 
 function readCart(): CartItem[] {
@@ -175,9 +166,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlistProductIds));
   }, [wishlistProductIds]);
 
-  const setCurrency = useCallback((c: CurrencyCode) => {
-    setCurrencyState(c);
-    localStorage.setItem(CURRENCY_KEY, c);
+  const setCurrency = useCallback((_c: CurrencyCode) => {
+    setCurrencyState("USD");
+    localStorage.setItem(CURRENCY_KEY, "USD");
   }, []);
 
   const hydrateUser = useCallback(async (t: string | null) => {
@@ -203,9 +194,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
       setUser(currentUser);
       applyUserPreferences(currentUser);
-      if (isCurrencyCode(currentUser.preferredCurrency)) {
-        setCurrencyState(currentUser.preferredCurrency);
-      }
+      setCurrencyState("USD");
     } catch {
       setUser(null);
       localStorage.removeItem(TOKEN_KEY);
@@ -226,9 +215,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(TOKEN_KEY, res.token);
     localStorage.setItem(USER_KEY, JSON.stringify(res.user));
     applyUserPreferences(res.user);
-    if (isCurrencyCode(res.user.preferredCurrency)) {
-      setCurrencyState(res.user.preferredCurrency);
-    }
+    setCurrencyState("USD");
 
     setToken(res.token);
     setUser(res.user);
@@ -263,9 +250,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(TOKEN_KEY, res.token);
       localStorage.setItem(USER_KEY, JSON.stringify(res.user));
       applyUserPreferences(res.user);
-      if (isCurrencyCode(res.user.preferredCurrency)) {
-        setCurrencyState(res.user.preferredCurrency);
-      }
+      setCurrencyState("USD");
 
       setToken(res.token);
       setUser(res.user);
@@ -322,9 +307,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
       applyUserPreferences(updatedUser);
 
-      if (isCurrencyCode(updatedUser.preferredCurrency)) {
-        setCurrencyState(updatedUser.preferredCurrency);
-      }
+      setCurrencyState("USD");
 
       setUser(updatedUser);
 
@@ -337,9 +320,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
     applyUserPreferences(updatedUser);
 
-    if (isCurrencyCode(updatedUser.preferredCurrency)) {
-      setCurrencyState(updatedUser.preferredCurrency);
-    }
+    setCurrencyState("USD");
 
     setUser(updatedUser);
   }, []);

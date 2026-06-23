@@ -5,6 +5,7 @@ import { EagleLogo } from "./Logo";
 import { Footer } from "./Footer";
 import { useStore } from "../../context/StoreContext";
 import { formatMoney, fromUsd } from "../../lib/currency";
+import { persistLanguage } from "../../i18n/config";
 
 const guestAvatar = "/images/profile/default-avatar.svg";
 const userAvatar = "/images/profile/login-avatar.svg";
@@ -19,7 +20,7 @@ function navClass(isActive: boolean) {
 }
 
 export function Layout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const {
     user,
@@ -31,6 +32,7 @@ export function Layout() {
     addToCart,
     removeFromCart,
     toggleWishlist,
+    updateProfile,
   } = useStore();
 
   const [userOpen, setUserOpen] = useState(false);
@@ -51,6 +53,15 @@ export function Layout() {
   const isAdmin = user?.roles?.includes("ADMIN") ?? false;
 
   const currentAvatar = user ? user.avatarUrl || userAvatar : guestAvatar;
+
+  const changeLanguage = (lng: string) => {
+    void i18n.changeLanguage(lng);
+    persistLanguage(lng);
+
+    if (user) {
+      void updateProfile({ preferredLanguage: lng });
+    }
+  };
 
   const cartPreview = useMemo(
     () =>
@@ -107,12 +118,12 @@ export function Layout() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0f1a]/95 text-white shadow-lg shadow-black/10 backdrop-blur-md">
-        <div className="container mx-auto flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <Link to="/" className="shrink-0">
+        <div className="container mx-auto grid gap-4 px-4 py-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:px-8">
+          <Link to="/" className="w-fit shrink-0 justify-self-start">
             <EagleLogo />
           </Link>
 
-          <nav className="flex flex-wrap items-center gap-2 lg:justify-center">
+          <nav className="flex flex-wrap items-center justify-center gap-2 lg:justify-self-center">
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
               {t("nav.home")}
             </NavLink>
@@ -139,7 +150,7 @@ export function Layout() {
             </NavLink>
           </nav>
 
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3 lg:justify-self-end">
             <div className="relative" ref={wishlistRef}>
               <button
                 type="button"
@@ -219,7 +230,7 @@ export function Layout() {
                             onClick={() => addToCart(p.id)}
                             className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-[#0a0f1a] transition-colors hover:bg-accent hover:text-white"
                           >
-                            + Cart
+                            + {t("nav.cart")}
                           </button>
 
                           <button
@@ -248,7 +259,9 @@ export function Layout() {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 px-1 pt-3 text-sm">
-                      <span className="font-semibold text-white/70">Total</span>
+                      <span className="font-semibold text-white/70">
+                        {t("cart.total")}
+                      </span>
 
                       <span className="font-display text-base font-bold text-primary">
                         {formatMoney(fromUsd(wishlistTotal, currency), currency)}
@@ -364,7 +377,9 @@ export function Layout() {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 px-1 pt-3 text-sm">
-                      <span className="font-semibold text-white/70">Total</span>
+                      <span className="font-semibold text-white/70">
+                        {t("cart.total")}
+                      </span>
 
                       <span className="font-display text-base font-bold text-primary">
                         {formatMoney(fromUsd(cartTotal, currency), currency)}
@@ -383,6 +398,39 @@ export function Layout() {
               </div>
             </div>
 
+            <label className="inline-flex h-11 items-center rounded-full bg-white/10 px-3 text-sm font-semibold text-white/80 transition-colors hover:bg-white/15">
+              <span className="sr-only">{t("common.language")}</span>
+              <select
+                value={i18n.language.split("-")[0]}
+                onChange={(event) => changeLanguage(event.target.value)}
+                className="bg-transparent text-sm font-bold text-white outline-none [&>option]:bg-[#0a0f1a]"
+                aria-label={t("common.language")}
+              >
+                <option value="es">ES</option>
+                <option value="en">EN</option>
+                <option value="fr">FR</option>
+                <option value="de">DE</option>
+              </select>
+            </label>
+
+            {!user ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/register"
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-black text-[#0a0f1a] transition hover:bg-white"
+                >
+                  {t("auth.register")}
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 bg-white/10 px-4 text-sm font-bold text-white/80 transition hover:bg-white hover:text-[#0a0f1a]"
+                >
+                  {t("nav.login")}
+                </Link>
+              </div>
+            ) : null}
+
+            {user ? (
             <div className="relative" ref={userRef}>
               <button
                 type="button"
@@ -544,6 +592,7 @@ export function Layout() {
                 </div>
               ) : null}
             </div>
+            ) : null}
           </div>
         </div>
       </header>
