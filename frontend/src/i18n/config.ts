@@ -12,6 +12,9 @@ const saved =
         ? localStorage.getItem(STORAGE_KEY)
         : null;
 
+const supportedLanguages = new Set(["es", "en", "fr", "de"]);
+const initialLanguage = saved && supportedLanguages.has(saved) ? saved : "es";
+
 void i18n.use(initReactI18next).init({
   resources: {
     es: { translation: es },
@@ -19,7 +22,7 @@ void i18n.use(initReactI18next).init({
     fr: { translation: fr },
     de: { translation: de },
   },
-  lng: saved ?? "es",
+  lng: initialLanguage,
   fallbackLng: "es",
   interpolation: {
     escapeValue: false,
