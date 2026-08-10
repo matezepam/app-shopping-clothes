@@ -385,7 +385,7 @@ export const en = {
   privacy: {
     title: "Privacy policy",
     body:
-      "This is a demo policy. In production, you should describe how you store data, manage accounts, and handle orders, including payment provider terms.",
+      "Sprint stores account and order data according to this policy. It does not process card data; commercial contact continues through the official WhatsApp number.",
   },
   adminProducts: {
     eyebrow: "Inventory",
@@ -697,7 +697,7 @@ export const en = {
     help: "Help",
     returns: "Exchanges and returns",
     privacy: "Privacy policy",
-    paymentMethods: "Payment methods",
+    paymentMethods: "WhatsApp contact",
     emailSupport: "Email support",
     phoneSupport: "Phone support",
     rights: "© 2026 Sprint. All rights reserved.",

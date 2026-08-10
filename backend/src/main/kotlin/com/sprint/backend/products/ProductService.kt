@@ -1,25 +1,20 @@
 package com.sprint.backend.products
 
-import com.sprint.backend.auth.JwtService
 import com.sprint.backend.products.dto.ProductRequest
 import com.sprint.backend.products.dto.ProductResponse
-import com.sprint.backend.users.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.text.Normalizer
 
 @Service
 class ProductService(
-    private val productRepository: ProductRepository,
-    private val userRepository: UserRepository,
-    private val jwtService: JwtService
+    private val productRepository: ProductRepository
 ) {
     fun listPublic(): List<ProductResponse> {
-        return productRepository.findAllByStatusOrderByCreatedAtDesc("active").map { it.toResponse() }
+        return productRepository.findAllByStatusAndModerationStatusOrderByCreatedAtDesc("active", "APPROVED").map { it.toResponse() }
     }
 
-    fun listAdmin(authorization: String?): List<ProductResponse> {
-        requireAdmin(authorization)
+    fun listAdmin(): List<ProductResponse> {
         return productRepository.findAll().sortedByDescending { it.createdAt }.map { it.toResponse() }
     }
 
@@ -28,7 +23,7 @@ class ProductService(
             IllegalArgumentException("Producto no encontrado")
         }
 
-        if (product.status != "active") {
+        if (product.status != "active" || product.moderationStatus != "APPROVED") {
             throw IllegalArgumentException("Producto no disponible")
         }
 
@@ -36,8 +31,7 @@ class ProductService(
     }
 
     @Transactional
-    fun create(authorization: String?, request: ProductRequest): ProductResponse {
-        requireAdmin(authorization)
+    fun create(request: ProductRequest): ProductResponse {
 
         val id = request.id?.trim()?.takeIf { it.isNotBlank() } ?: slugify(request.name)
         if (productRepository.existsById(id)) {
@@ -52,10 +46,13 @@ class ProductService(
     }
 
     @Transactional
-    fun update(authorization: String?, id: String, request: ProductRequest): ProductResponse {
-        requireAdmin(authorization)
+    fun update(id: String, request: ProductRequest): ProductResponse {
         val product = productRepository.findById(id).orElseThrow {
             IllegalArgumentException("Producto no encontrado")
+        }
+
+        productRepository.findBySku(request.sku.trim())?.let {
+            require(it.id == id) { "Ya existe un producto con ese SKU" }
         }
 
         product.sku = request.sku.trim()
@@ -73,19 +70,18 @@ class ProductService(
         product.gender = request.gender.trim()
         product.color = request.color.trim()
         product.sizes = request.sizes.clean().joinToString("|")
-        product.stock = request.stock
         product.status = normalizeStatus(request.status)
+        product.moderationStatus = "PENDING"
+        product.moderationNote = null
 
         return productRepository.save(product).toResponse()
     }
 
     @Transactional
-    fun delete(authorization: String?, id: String) {
-        requireAdmin(authorization)
-        if (!productRepository.existsById(id)) {
-            throw IllegalArgumentException("Producto no encontrado")
-        }
-        productRepository.deleteById(id)
+    fun delete(id: String) {
+        val product = productRepository.findById(id).orElseThrow { IllegalArgumentException("Producto no encontrado") }
+        product.status = "disabled"
+        productRepository.save(product)
     }
 
     private fun ProductRequest.toProduct(id: String): Product {
@@ -106,8 +102,9 @@ class ProductService(
             gender = gender.trim(),
             color = color.trim(),
             sizes = sizes.clean().joinToString("|"),
-            stock = stock,
-            status = normalizeStatus(status)
+            stock = 0,
+            status = normalizeStatus(status),
+            moderationStatus = "PENDING"
         )
     }
 
@@ -131,25 +128,10 @@ class ProductService(
             sizes = sizes.splitPipe(),
             stock = stock,
             status = status,
+            moderationStatus = moderationStatus,
+            moderationNote = moderationNote,
             createdAt = createdAt.toString()
         )
-    }
-
-    private fun requireAdmin(authorization: String?) {
-        val token = authorization
-            ?.removePrefix("Bearer ")
-            ?.removePrefix("bearer ")
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: throw IllegalArgumentException("Token requerido")
-
-        val email = jwtService.extractSubject(token)
-        val user = userRepository.findByEmail(email)
-            ?: throw IllegalArgumentException("Usuario no encontrado")
-
-        if (user.roles.none { it.name == "ADMIN" }) {
-            throw IllegalArgumentException("Necesitas permisos de administrador")
-        }
     }
 
     private fun normalizeCollection(value: String): String {

@@ -735,7 +735,7 @@ export const es = {
     help: "Ayuda",
     returns: "Cambios y devoluciones",
     privacy: "Política de privacidad",
-    paymentMethods: "Métodos de pago",
+    paymentMethods: "Contacto por WhatsApp",
     emailSupport: "Soporte por correo",
     phoneSupport: "Soporte por teléfono",
 
@@ -803,9 +803,9 @@ export const es = {
     subtitle:
         "Resuelve rápidamente las dudas más comunes sobre compras, pagos, productos y devoluciones.",
     q1: "¿Cómo puedo realizar una compra?",
-    a1: "Selecciona tus productos, agrégalos al carrito y continúa al proceso de pago desde la página de checkout.",
+    a1: "Selecciona tus productos, agrégalos al carrito y registra la solicitud desde la página de confirmación.",
     q2: "¿Qué métodos de pago acepta Sprint?",
-    a2: "Sprint puede trabajar con tarjetas, billeteras digitales y otros métodos configurados dentro del checkout.",
+    a2: "Sprint no procesa pagos en línea; genera una solicitud persistente y continúa el contacto comercial por WhatsApp.",
     q3: "¿Puedo solicitar una devolución?",
     a3: "Sí. Puedes revisar la sección de cambios y devoluciones para enviar una solicitud según el estado del pedido.",
     q4: "¿Dónde puedo ver mis pedidos?",
@@ -824,9 +824,9 @@ export const es = {
     section2Title: "Productos y precios",
     section2Text:
         "Los productos, precios, imágenes y disponibilidad pueden variar según el inventario registrado. Sprint puede actualizar la información comercial cuando sea necesario.",
-    section3Title: "Pagos y pedidos",
+    section3Title: "Solicitudes y pedidos",
     section3Text:
-        "Los pedidos se procesan una vez completado el flujo de compra. En una versión de producción, el pago dependerá del proveedor integrado.",
+        "La solicitud se registra con el total calculado por el servidor y continúa por el canal oficial de WhatsApp. Sprint no procesa datos bancarios.",
     section4Title: "Cambios y devoluciones",
     section4Text:
         "Las solicitudes de cambio o devolución serán revisadas según el estado del pedido, las condiciones del producto y las políticas internas de la tienda.",

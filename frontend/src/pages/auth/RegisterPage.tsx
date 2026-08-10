@@ -156,7 +156,7 @@ export function RegisterPage() {
       const country =
         countries.find((c) => c.code === countryCode) ?? countries[0];
 
-      await register({
+      const registration = await register({
         firstName,
         lastName,
         email,
@@ -170,7 +170,11 @@ export function RegisterPage() {
         gender,
       });
 
-      nav("/");
+      if (registration.confirmed) {
+        nav("/login");
+      } else {
+        nav(`/verify-email?email=${encodeURIComponent(registration.email)}`);
+      }
     } catch (err) {
       setError(
         err instanceof Error

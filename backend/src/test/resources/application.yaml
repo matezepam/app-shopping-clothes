@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:sprint;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+app:
+  cors:
+    allowed-origins: https://store.test
+  whatsapp:
+    business-number: 593999999999
+  cognito:
+    region: us-east-1
+    user-pool-id: us-east-1_test
+    client-id: test-client
+    client-secret:

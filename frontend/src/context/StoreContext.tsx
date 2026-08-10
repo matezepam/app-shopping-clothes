@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api } from "../lib/api";
+import { api, type RegistrationResponse } from "../lib/api";
 import type {
   CartItem,
   CurrencyCode,
@@ -16,10 +16,10 @@ import type {
   ReturnRequest,
   User,
 } from "../types/store";
-import { products as fallbackCatalog } from "../data/products";
 import i18n, { persistLanguage } from "../i18n/config";
 
 const TOKEN_KEY = "eagle_token";
+const REFRESH_TOKEN_KEY = "eagle_refresh_token";
 const USER_KEY = "eagle_user";
 const CURRENCY_KEY = "eagle_currency";
 const WISHLIST_KEY = "eagle_wishlist";
@@ -68,7 +68,7 @@ type StoreContextValue = {
     birthDate: string;
     age: number;
     gender: string;
-  }) => Promise<void>;
+  }) => Promise<RegistrationResponse>;
   logout: () => void;
   addToCart: (productId: string, qty?: number) => void;
   setQuantity: (productId: string, quantity: number) => void;
@@ -80,7 +80,7 @@ type StoreContextValue = {
   checkoutWishlist: () => Promise<Order>;
   refreshOrders: () => Promise<void>;
   refreshReturns: () => Promise<void>;
-  checkout: () => Promise<Order>;
+  checkout: (delivery: { shippingAddress: string; contactPhone: string }) => Promise<Order>;
   requestReturn: (payload: {
     orderId: string;
     productId: string;
@@ -92,8 +92,8 @@ type StoreContextValue = {
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 function readToken(): string | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  if (typeof sessionStorage === "undefined") return null;
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
 function readStoredUser(): User | null {
@@ -150,7 +150,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<CurrencyCode>(() =>
     readCurrency(),
   );
-  const [catalog, setCatalog] = useState<Product[]>(fallbackCatalog);
+  const [catalog, setCatalog] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [wishlistProductIds, setWishlistProductIds] = useState<string[]>(() =>
@@ -183,13 +183,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       if (!storedUser) {
         setUser(null);
-        localStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
         setToken(null);
         return;
       }
 
-      const { user: currentUser } = await api.me(t);
+      let activeToken = t;
+      let currentUser: User;
+      try {
+        ({ user: currentUser } = await api.me(activeToken));
+      } catch {
+        const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY);
+        if (!refreshToken) throw new Error("Session expired");
+        const renewed = await api.refresh(refreshToken, storedUser.email);
+        activeToken = renewed.token;
+        sessionStorage.setItem(TOKEN_KEY, activeToken);
+        setToken(activeToken);
+        ({ user: currentUser } = await api.me(activeToken));
+      }
 
       localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
       setUser(currentUser);
@@ -197,7 +210,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setCurrencyState("USD");
     } catch {
       setUser(null);
-      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       setToken(null);
     } finally {
@@ -211,14 +225,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.login({ email, password });
+    const { user: currentUser } = await api.me(res.token);
 
-    localStorage.setItem(TOKEN_KEY, res.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(res.user));
-    applyUserPreferences(res.user);
+    sessionStorage.setItem(TOKEN_KEY, res.token);
+    if (res.refreshToken) sessionStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+    applyUserPreferences(currentUser);
     setCurrencyState("USD");
 
     setToken(res.token);
-    setUser(res.user);
+    setUser(currentUser);
   }, []);
 
   const register = useCallback(
@@ -235,7 +251,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       age: number;
       gender: string;
     }) => {
-      const res = await api.register({
+      return api.register({
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
@@ -247,19 +263,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         age: data.age,
       });
 
-      localStorage.setItem(TOKEN_KEY, res.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
-      applyUserPreferences(res.user);
-      setCurrencyState("USD");
-
-      setToken(res.token);
-      setUser(res.user);
     },
     [],
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
@@ -272,7 +282,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { products } = await api.products();
       setCatalog(products);
     } catch {
-      setCatalog(fallbackCatalog);
+      setCatalog([]);
     }
   }, []);
 
@@ -295,15 +305,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }) => {
       if (!token) throw new Error("Login required");
 
-      const { token: nextToken, user: updatedUser } = await api.updateProfile(
+      const { user: updatedUser } = await api.updateProfile(
         token,
         data,
       );
 
-      if (nextToken) {
-        localStorage.setItem(TOKEN_KEY, nextToken);
-        setToken(nextToken);
-      }
       localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
       applyUserPreferences(updatedUser);
 
@@ -439,21 +445,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const checkoutWishlist = useCallback(async () => {
     if (!token) throw new Error("Login required");
     if (wishlistProductIds.length === 0) throw new Error("Wishlist empty");
+    if (!user?.currentLocation || !user.phone) throw new Error("Completa tu dirección y teléfono en el perfil");
 
     const { order } = await api.checkout(token, {
       items: wishlistProductIds.map((productId) => ({
         productId,
         quantity: 1,
       })),
+      shippingAddress: user?.currentLocation ?? "",
+      contactPhone: user?.phone ?? "",
     });
 
     clearWishlist();
     await refreshOrders();
 
     return order;
-  }, [token, wishlistProductIds, clearWishlist, refreshOrders]);
+  }, [token, user, wishlistProductIds, clearWishlist, refreshOrders]);
 
-  const checkout = useCallback(async () => {
+  const checkout = useCallback(async (delivery: { shippingAddress: string; contactPhone: string }) => {
     if (!token) throw new Error("Login required");
     if (cart.length === 0) throw new Error("Cart empty");
 
@@ -462,6 +471,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         productId: c.productId,
         quantity: c.quantity,
       })),
+      ...delivery,
     });
 
     clearCart();

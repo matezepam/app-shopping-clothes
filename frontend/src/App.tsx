@@ -24,6 +24,10 @@ const CategoryPage = lazy(() =>
     }))
 );
 
+const OperationsPage = lazy(() =>
+    import("./pages/admin/OperationsPage").then((module) => ({ default: module.OperationsPage }))
+);
+
 const ProductDetailPage = lazy(() =>
     import("./pages/shop/ProductDetailPage").then((module) => ({
         default: module.ProductDetailPage,
@@ -58,6 +62,10 @@ const ForgotPasswordPage = lazy(() =>
     import("./pages/auth/ForgotPassword").then((module) => ({
         default: module.ForgotPasswordPage,
     }))
+);
+
+const VerifyEmailPage = lazy(() =>
+    import("./pages/auth/VerifyEmailPage").then((module) => ({ default: module.VerifyEmailPage }))
 );
 
 const ChangePasswordPage = lazy(() =>
@@ -165,9 +173,13 @@ export function App() {
 
                     <Route path="admin" element={<AdminPage />} />
 
+                    <Route path="admin/operations" element={<OperationsPage />} />
+
                     <Route path="login" element={<LoginPage />} />
 
                     <Route path="register" element={<RegisterPage />} />
+
+                    <Route path="verify-email" element={<VerifyEmailPage />} />
 
                     <Route path="forgot-password" element={<ForgotPasswordPage />} />
 

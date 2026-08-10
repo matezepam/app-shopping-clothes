@@ -3,15 +3,15 @@ spring:
     name: backend
 
   datasource:
-    url: jdbc:postgresql://127.0.0.1:5433/db_sprint
-    username: matezepam
-    password: "351759"
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -21,9 +21,16 @@ spring:
     locations: classpath:db/migration
 
 server:
-  port: 8080
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
 
-security:
-  jwt:
-    secret: "sprint-backend-secret-key-for-jwt-authentication-2026-secure"
-    expiration-ms: 86400000
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
+  whatsapp:
+    business-number: ${APP_WHATSAPP_BUSINESS_NUMBER}
+  cognito:
+    region: ${AWS_COGNITO_REGION}
+    user-pool-id: ${AWS_COGNITO_USER_POOL_ID}
+    client-id: ${AWS_COGNITO_CLIENT_ID}
+    client-secret: ${AWS_COGNITO_CLIENT_SECRET:}

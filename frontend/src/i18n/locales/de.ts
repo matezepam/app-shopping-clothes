@@ -698,7 +698,7 @@ export const de = {
     help: "Hilfe",
     returns: "Umtausch und Rücksendungen",
     privacy: "Datenschutz",
-    paymentMethods: "Zahlungsmethoden",
+    paymentMethods: "WhatsApp-Kontakt",
     emailSupport: "E-Mail-Support",
     phoneSupport: "Telefon-Support",
     rights: "© 2026 Sprint. Alle Rechte vorbehalten.",

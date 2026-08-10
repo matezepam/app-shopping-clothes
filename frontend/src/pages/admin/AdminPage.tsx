@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -217,6 +218,8 @@ export function AdminPage() {
               {t("adminProducts.subtitle")}
             </p>
           </div>
+          <div className="flex flex-wrap gap-3">
+          <Link to="/admin/operations" className="inline-flex items-center justify-center rounded-full border border-white/20 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10">Operaciones</Link>
           <button
             type="button"
             onClick={openCreate}
@@ -225,6 +228,7 @@ export function AdminPage() {
             <Plus size={18} />
             {t("adminProducts.add")}
           </button>
+          </div>
         </div>
       </section>
 
@@ -507,14 +511,15 @@ export function AdminPage() {
                 </label>
 
                 <label className="text-sm font-bold text-neutral-700">
-                  Stock
+                  Stock (gestionar en Operaciones)
                   <input
                     type="number"
+                    disabled
                     value={form.stock}
                     onChange={(event) =>
                       setForm((current) => ({ ...current, stock: Number(event.target.value) }))
                     }
-                    className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary"
+                    className="mt-2 w-full rounded-2xl border border-neutral-200 bg-neutral-100 px-4 py-3 text-sm text-neutral-500"
                   />
                 </label>
 

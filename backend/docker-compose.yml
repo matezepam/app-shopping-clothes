@@ -4,9 +4,9 @@ services:
     container_name: sprint-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: db_sprint
-      POSTGRES_USER: matezepam
-      POSTGRES_PASSWORD: "351759"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5433:5432"
     volumes:

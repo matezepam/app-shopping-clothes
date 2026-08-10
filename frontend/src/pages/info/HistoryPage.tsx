@@ -133,6 +133,9 @@ export function HistoryPage() {
                 {t("history.total")}:{" "}
                 {formatMoney(fromUsd(o.totalUsd, currency), currency)}
               </p>
+              {o.status === "PENDING_WHATSAPP" ? (
+                <a href={o.whatsappUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Continuar por WhatsApp</a>
+              ) : null}
               <ul className="mt-4 space-y-2 border-t border-neutral-100 pt-4">
                 {o.items.map((i) => (
                   <li
@@ -142,7 +145,7 @@ export function HistoryPage() {
                     <span className="font-semibold text-neutral-700">
                       {i.name} × {i.quantity}
                     </span>
-                    <button
+                    {o.status === "DELIVERED" ? <button
                       type="button"
                       className="rounded-full border border-neutral-200 px-3 py-1 text-xs font-bold text-neutral-700 transition hover:bg-neutral-100"
                       onClick={() => {
@@ -157,7 +160,7 @@ export function HistoryPage() {
                       }}
                     >
                       {t("history.returnCta")}
-                    </button>
+                    </button> : null}
                   </li>
                 ))}
               </ul>

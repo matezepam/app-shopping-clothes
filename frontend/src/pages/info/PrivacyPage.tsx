@@ -72,7 +72,7 @@ export function PrivacyPage() {
           ),
           t(
             "privacy.sections.data.p3",
-            "Cuando utilizas métodos de pago, ciertos datos pueden ser procesados por proveedores externos de pago. No almacenamos información completa de tarjetas si el proveedor de pago la gestiona directamente."
+            "Sprint no procesa ni almacena datos de tarjetas. La solicitud comercial se registra en el sistema y el contacto final continúa mediante el número oficial de WhatsApp."
           ),
         ],
       },

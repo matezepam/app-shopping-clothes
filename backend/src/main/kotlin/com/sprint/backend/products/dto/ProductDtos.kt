@@ -25,6 +25,8 @@ data class ProductResponse(
     val sizes: List<String>,
     val stock: Int,
     val status: String,
+    val moderationStatus: String,
+    val moderationNote: String?,
     val createdAt: String
 )
 

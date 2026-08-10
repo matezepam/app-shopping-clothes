@@ -32,7 +32,7 @@ export type ProductColor =
   | "plateado"
   | "rosa";
 
-export type UserRole = "USER" | "ADMIN";
+export type UserRole = "USER" | "ADMIN" | "VENDOR" | "SUPPLIER" | "MODERATOR";
 
 export interface Product {
   id: string;
@@ -51,6 +51,8 @@ export interface Product {
   sizes?: string[];
   stock?: number;
   status?: "active" | "draft" | "disabled";
+  moderationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "OBSERVED";
+  moderationNote?: string | null;
   description?: string | null;
   story?: string | null;
   createdAt?: string;
@@ -93,10 +95,13 @@ export interface Order {
   createdAt: string;
   totalUsd: number;
   status: string;
+  shippingAddress: string;
+  contactPhone: string;
+  whatsappUrl: string;
   items: OrderLine[];
 }
 
-export type ReturnStatus = "requested" | "approved" | "rejected" | "refunded";
+export type ReturnStatus = "REQUESTED" | "APPROVED" | "REJECTED" | "RECEIVED";
 
 export interface ReturnRequest {
   id: string;

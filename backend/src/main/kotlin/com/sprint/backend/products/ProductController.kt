@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
@@ -31,36 +31,35 @@ class ProductController(
     }
 
     @GetMapping("/admin")
-    fun listAdmin(
-        @RequestHeader("Authorization", required = false) authorization: String?
-    ): Map<String, List<ProductResponse>> {
-        return mapOf("products" to productService.listAdmin(authorization))
+    @PreAuthorize("hasAnyRole('ADMIN','VENDOR','MODERATOR')")
+    fun listAdmin(): Map<String, List<ProductResponse>> {
+        return mapOf("products" to productService.listAdmin())
     }
 
     @PostMapping("/admin")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN','VENDOR')")
     fun create(
-        @RequestHeader("Authorization", required = false) authorization: String?,
         @Valid @RequestBody request: ProductRequest
     ): Map<String, ProductResponse> {
-        return mapOf("product" to productService.create(authorization, request))
+        return mapOf("product" to productService.create(request))
     }
 
     @PutMapping("/admin/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','VENDOR')")
     fun update(
-        @RequestHeader("Authorization", required = false) authorization: String?,
         @PathVariable id: String,
         @Valid @RequestBody request: ProductRequest
     ): Map<String, ProductResponse> {
-        return mapOf("product" to productService.update(authorization, id, request))
+        return mapOf("product" to productService.update(id, request))
     }
 
     @DeleteMapping("/admin/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     fun delete(
-        @RequestHeader("Authorization", required = false) authorization: String?,
         @PathVariable id: String
     ) {
-        productService.delete(authorization, id)
+        productService.delete(id)
     }
 }

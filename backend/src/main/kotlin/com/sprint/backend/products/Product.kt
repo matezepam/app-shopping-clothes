@@ -65,6 +65,18 @@ class Product(
     @Column(nullable = false, length = 20)
     var status: String = "active",
 
+    @Column(name = "moderation_status", nullable = false, length = 20)
+    var moderationStatus: String = "APPROVED",
+
+    @Column(name = "moderation_note", length = 500)
+    var moderationNote: String? = null,
+
+    @Column(name = "moderated_by", length = 80)
+    var moderatedBy: String? = null,
+
+    @Column(name = "moderated_at")
+    var moderatedAt: LocalDateTime? = null,
+
     @Column(name = "created_at", nullable = false)
     var createdAt: LocalDateTime = LocalDateTime.now()
 )

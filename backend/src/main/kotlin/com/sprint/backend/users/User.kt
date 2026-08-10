@@ -29,8 +29,8 @@ class User(
     @Column(nullable = false, unique = true, length = 150)
     var email: String,
 
-    @Column(name = "password_hash", nullable = false, length = 255)
-    var password: String,
+    @Column(name = "cognito_sub", unique = true, length = 80)
+    var cognitoSub: String? = null,
 
     @Column(length = 30)
     var phone: String? = null,
@@ -60,16 +60,9 @@ class User(
     var currentLocation: String? = null,
 
     @Column(nullable = false)
-    val enabled: Boolean = true,
+    var enabled: Boolean = true,
 
     @Column(name = "created_at", nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "users_roles",
-        joinColumns = [JoinColumn(name = "user_id")],
-        inverseJoinColumns = [JoinColumn(name = "role_id")]
-    )
-    val roles: MutableSet<Role> = mutableSetOf()
 )
