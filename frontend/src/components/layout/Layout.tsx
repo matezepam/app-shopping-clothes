@@ -117,13 +117,14 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <a href="#main-content" className="skip-link">Saltar al contenido principal</a>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0f1a]/95 text-white shadow-lg shadow-black/10 backdrop-blur-md">
-        <div className="container mx-auto grid gap-4 px-4 py-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:px-8">
+        <div className="container mx-auto grid grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 lg:grid-cols-[1fr_auto_1fr] lg:px-8 lg:py-4">
           <Link to="/" className="w-fit shrink-0 justify-self-start">
             <EagleLogo />
           </Link>
 
-          <nav className="flex flex-wrap items-center justify-center gap-2 lg:justify-self-center">
+          <nav aria-label="Navegación principal" className="order-3 col-span-2 flex w-full items-center justify-start gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:order-none lg:col-span-1 lg:justify-self-center lg:overflow-visible lg:pb-0">
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
               {t("nav.home")}
             </NavLink>
@@ -150,7 +151,7 @@ export function Layout() {
             </NavLink>
           </nav>
 
-          <div className="flex flex-wrap items-center justify-end gap-3 lg:justify-self-end">
+          <div className="flex min-w-0 items-center justify-end gap-2 lg:gap-3 lg:justify-self-end">
             <div className="relative" ref={wishlistRef}>
               <button
                 type="button"
@@ -597,7 +598,7 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="container mx-auto flex w-full flex-1 flex-col px-4 py-8 lg:px-8">
+      <main id="main-content" tabIndex={-1} className="container mx-auto flex w-full flex-1 flex-col px-4 py-8 outline-none lg:px-8">
         <Outlet />
       </main>
 

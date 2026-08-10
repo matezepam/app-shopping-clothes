@@ -1,10 +1,11 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import { Layout } from "./components/layout/Layout";
 import { PageLoader } from "./components/common/PageLoader";
 import { ScrollToTop } from "./components/common/ScrollToTop";
+import { ProtectedRoute } from "./components/common/ProtectedRoute";
 
 const AdminPage = lazy(() =>
     import("./pages/admin/AdminPage").then((module) => ({
@@ -152,6 +153,10 @@ const SettingsPage = lazy(() =>
     }))
 );
 
+const NotFoundPage = lazy(() =>
+    import("./pages/info/NotFoundPage").then((module) => ({ default: module.NotFoundPage }))
+);
+
 export function App() {
     return (
         <Suspense fallback={<PageLoader />}>
@@ -171,9 +176,9 @@ export function App() {
 
                     <Route path="returns" element={<ReturnsPage />} />
 
-                    <Route path="admin" element={<AdminPage />} />
+                    <Route path="admin" element={<ProtectedRoute roles={["ADMIN"]}><AdminPage /></ProtectedRoute>} />
 
-                    <Route path="admin/operations" element={<OperationsPage />} />
+                    <Route path="admin/operations" element={<ProtectedRoute roles={["ADMIN"]}><OperationsPage /></ProtectedRoute>} />
 
                     <Route path="login" element={<LoginPage />} />
 
@@ -201,16 +206,16 @@ export function App() {
 
                     <Route path="terms" element={<TermsPage />} />
 
-                    <Route path="profile" element={<ProfilePage />} />
+                    <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
-                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
                     <Route path="favorites" element={<FavoritesPage />} />
 
-                    <Route path="dashboard" element={<UserDashboardPage />} />
+                    <Route path="dashboard" element={<ProtectedRoute><UserDashboardPage /></ProtectedRoute>} />
                 </Route>
 
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
             </Routes>
 
             <SpeedInsights />

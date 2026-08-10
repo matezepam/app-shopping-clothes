@@ -14,10 +14,58 @@
 
 @layer base {
   html {
-    @apply scroll-smooth;
+    @apply scroll-smooth antialiased;
+    color-scheme: light;
   }
 
   body {
     @apply bg-background text-foreground font-sans min-h-screen;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    @apply bg-primary text-neutral-950;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgb(245 158 11 / 0.85);
+    outline-offset: 3px;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .skip-link {
+    @apply fixed left-4 top-3 z-[100] -translate-y-24 rounded-full bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-2xl transition-transform focus:translate-y-0;
+  }
+
+  .surface-card {
+    @apply rounded-[2rem] border border-black/10 bg-white shadow-sm shadow-black/5;
+  }
+
+  .field-control {
+    @apply w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-foreground shadow-sm transition placeholder:text-neutral-400 hover:border-black/20 focus:border-accent focus:outline-none focus:ring-4 focus:ring-amber-300/30;
+  }
+
+  .primary-action {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
