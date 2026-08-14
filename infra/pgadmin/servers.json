@@ -1,0 +1,16 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Sprint - PostgreSQL 16",
+      "Group": "Sprint Clothes",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "sprint_identity",
+      "Username": "sprint_app",
+      "SSLMode": "disable",
+      "PasswordExecCommand": "printf '%s' \"$POSTGRES_PASSWORD\"",
+      "PasswordExecExpiration": 0,
+      "Comment": "Instancia con bases separadas de identidad y comercio de Sprint Clothes"
+    }
+  }
+}

@@ -1,20 +1,33 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:sprint;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create
     show-sql: false
+    properties:
+      hibernate:
+        hbm2ddl:
+          create_namespaces: true
   flyway:
     enabled: false
 app:
+  database:
+    ddl-auto: create
+    migrations-enabled: false
+  datasource:
+    identity:
+      url: jdbc:h2:mem:sprint_identity;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+    commerce:
+      url: jdbc:h2:mem:sprint_commerce;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
   cors:
     allowed-origins: https://store.test
   whatsapp:
-    business-number: 593999999999
+    business-number: 593939051525
   cognito:
     region: us-east-1
     user-pool-id: us-east-1_test

@@ -145,8 +145,8 @@ export function Footer() {
                   {t("footer.emailSupport")}
                 </a>
 
-                <a href="tel:+593999999999" className={footerLinkClass}>
-                  {t("footer.phoneSupport")}
+                <a href="tel:+593939051525" className={footerLinkClass}>
+                  {t("footer.phoneSupport")} · +593 93 905 1525
                 </a>
               </div>
             </div>

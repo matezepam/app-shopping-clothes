@@ -1,5 +1,8 @@
 package com.sprint.backend.config
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.sprint.backend.audit.AuditActivityFilter
+import com.sprint.backend.audit.AuditLogService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -21,6 +24,7 @@ import org.springframework.security.oauth2.jwt.JwtTimestampValidator
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.access.intercept.AuthorizationFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -32,11 +36,14 @@ class SecurityConfig {
     fun securityFilterChain(
         http: HttpSecurity,
         jwtDecoder: JwtDecoder,
-        jwtAuthenticationConverter: JwtAuthenticationConverter
+        jwtAuthenticationConverter: JwtAuthenticationConverter,
+        corsConfigurationSource: CorsConfigurationSource,
+        objectMapper: ObjectMapper,
+        auditLogService: AuditLogService
     ): SecurityFilterChain {
         return http
             .csrf { it.disable() }
-            .cors { it.configurationSource(corsConfigurationSource()) }
+            .cors { it.configurationSource(corsConfigurationSource) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -50,6 +57,7 @@ class SecurityConfig {
                         "/api/auth/reset-password",
                         "/actuator/health"
                     ).permitAll()
+                    .requestMatchers("/actuator/**").hasRole("ADMIN")
                     .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
                     .anyRequest().authenticated()
             }
@@ -58,17 +66,22 @@ class SecurityConfig {
                     jwt.decoder(jwtDecoder)
                     jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)
                 }
-                it.authenticationEntryPoint { _, response, _ ->
+                it.authenticationEntryPoint { request, response, _ ->
                     response.status = 401
                     response.contentType = "application/json"
-                    response.writer.write("{\"message\":\"Token ausente, inválido o vencido\"}")
+                    response.characterEncoding = Charsets.UTF_8.name()
+                    objectMapper.writeValue(response.writer, ApiErrorResponse(status = 401, code = "UNAUTHORIZED", message = "Token ausente, inválido o vencido", path = request.requestURI, requestId = request.requestId()))
+                    runCatching { auditLogService.record(request, 401, 0) }
                 }
-                it.accessDeniedHandler { _, response, _ ->
+                it.accessDeniedHandler { request, response, _ ->
                     response.status = 403
                     response.contentType = "application/json"
-                    response.writer.write("{\"message\":\"El rol no tiene permiso para esta operación\"}")
+                    response.characterEncoding = Charsets.UTF_8.name()
+                    objectMapper.writeValue(response.writer, ApiErrorResponse(status = 403, code = "FORBIDDEN", message = "El rol no tiene permiso para esta operación", path = request.requestURI, requestId = request.requestId()))
+                    runCatching { auditLogService.record(request, 403, 0) }
                 }
             }
+            .addFilterAfter(AuditActivityFilter(auditLogService), AuthorizationFilter::class.java)
             .build()
     }
 
@@ -118,7 +131,7 @@ class SecurityConfig {
         configuration.allowedOrigins = allowedOrigins.split(',').map { it.trim() }.filter { it.isNotBlank() }
         configuration.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         configuration.allowedHeaders = listOf("Authorization", "Content-Type", "Idempotency-Key")
-        configuration.exposedHeaders = listOf("Location")
+        configuration.exposedHeaders = listOf("Location", REQUEST_ID_HEADER)
         configuration.allowCredentials = true
         configuration.maxAge = 3600
         return UrlBasedCorsConfigurationSource().also {

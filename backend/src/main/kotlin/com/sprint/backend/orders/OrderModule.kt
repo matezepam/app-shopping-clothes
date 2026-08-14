@@ -4,7 +4,7 @@ import com.sprint.backend.auth.AuthService
 import com.sprint.backend.inventory.InventoryService
 import com.sprint.backend.products.Product
 import com.sprint.backend.products.ProductRepository
-import com.sprint.backend.users.User
+import com.sprint.backend.users.UserRepository
 import jakarta.persistence.*
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
@@ -24,10 +24,12 @@ import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.util.UUID
 
-@Entity @Table(name = "orders")
+@Entity @Table(name = "orders", schema = "commerce")
 class Order(
     @Id val id: UUID = UUID.randomUUID(),
-    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id", nullable = false) val user: User,
+    @Column(name = "identity_user_id", nullable = false) val identityUserId: Long,
+    @Column(name = "user_sub", nullable = false, length = 80) val userSub: String,
+    @Column(name = "user_email", nullable = false, length = 150) val userEmail: String,
     @Column(nullable = false, length = 30) var status: String = "PENDING_WHATSAPP",
     @Column(name = "total_usd", nullable = false, precision = 12, scale = 2) var totalUsd: BigDecimal = BigDecimal.ZERO,
     @Column(name = "idempotency_key", length = 120) val idempotencyKey: String? = null,
@@ -38,7 +40,7 @@ class Order(
     @OneToMany(mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true) val items: MutableList<OrderItem> = mutableListOf()
 )
 
-@Entity @Table(name = "order_items")
+@Entity @Table(name = "order_items", schema = "commerce")
 class OrderItem(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "order_id", nullable = false) val order: Order,
@@ -49,10 +51,24 @@ class OrderItem(
     @Column(name = "subtotal_usd", nullable = false, precision = 12, scale = 2) val subtotalUsd: BigDecimal
 )
 
+@Entity @Table(name = "order_status_history", schema = "audit")
+class OrderStatusHistory(
+    @Id val id: UUID = UUID.randomUUID(),
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "order_id", nullable = false) val order: Order,
+    @Column(name = "changed_by_identity_user_id") val changedByIdentityUserId: Long? = null,
+    @Column(name = "changed_by_sub", nullable = false, length = 80) val changedBySub: String,
+    @Column(nullable = false, length = 30) val status: String,
+    @Column(name = "created_at", nullable = false) val createdAt: LocalDateTime = LocalDateTime.now()
+)
+
 interface OrderRepository : JpaRepository<Order, UUID> {
-    fun findAllByUserIdOrderByCreatedAtDesc(userId: Long): List<Order>
-    fun findByUserIdAndIdempotencyKey(userId: Long, idempotencyKey: String): Order?
+    fun findAllByUserSubOrderByCreatedAtDesc(userSub: String): List<Order>
+    fun findByUserSubAndIdempotencyKey(userSub: String, idempotencyKey: String): Order?
     fun findAllByOrderByCreatedAtDesc(): List<Order>
+}
+
+interface OrderStatusHistoryRepository : JpaRepository<OrderStatusHistory, UUID> {
+    fun findAllByOrderIdOrderByCreatedAtAsc(orderId: UUID): List<OrderStatusHistory>
 }
 
 data class CheckoutLine(@field:jakarta.validation.constraints.NotBlank val productId: String, @field:Min(1) val quantity: Int)
@@ -61,7 +77,7 @@ data class CheckoutRequest(
     @field:jakarta.validation.constraints.NotBlank @field:jakarta.validation.constraints.Size(max = 300) val shippingAddress: String,
     @field:jakarta.validation.constraints.NotBlank @field:jakarta.validation.constraints.Size(max = 30) val contactPhone: String
 )
-data class OrderStatusRequest(val status: String)
+data class OrderStatusRequest(@field:jakarta.validation.constraints.NotBlank val status: String)
 data class OrderLineResponse(val productId: String, val name: String, val quantity: Int, val unitPriceUsd: BigDecimal, val subtotalUsd: BigDecimal)
 data class OrderResponse(val id: UUID, val createdAt: String, val updatedAt: String, val totalUsd: BigDecimal, val status: String, val shippingAddress: String, val contactPhone: String, val items: List<OrderLineResponse>, val whatsappUrl: String)
 
@@ -69,21 +85,40 @@ data class OrderResponse(val id: UUID, val createdAt: String, val updatedAt: Str
 class OrderService(
     private val auth: AuthService,
     private val orders: OrderRepository,
+    private val orderStatusHistory: OrderStatusHistoryRepository,
+    private val users: UserRepository,
     private val products: ProductRepository,
     private val inventory: InventoryService,
     @Value("\${app.whatsapp.business-number}") private val whatsappNumber: String
 ) {
-    fun listMine(jwt: Jwt) = orders.findAllByUserIdOrderByCreatedAtDesc(auth.currentUser(jwt).id!!).map { it.dto() }
+    private val normalizedWhatsappNumber = whatsappNumber.filter { it.isDigit() }.also {
+        require(it.length in 10..15) { "APP_WHATSAPP_BUSINESS_NUMBER debe estar en formato internacional, sin + ni espacios" }
+    }
+
+    @Transactional(readOnly = true)
+    fun listMine(jwt: Jwt): List<OrderResponse> {
+        auth.currentUser(jwt)
+        return orders.findAllByUserSubOrderByCreatedAtDesc(jwt.subject).map { it.dto() }
+    }
+
+    @Transactional(readOnly = true)
     fun listAll() = orders.findAllByOrderByCreatedAtDesc().map { it.dto() }
 
     @Transactional
     fun create(jwt: Jwt, request: CheckoutRequest, idempotencyKey: String?): OrderResponse {
         val user = auth.currentUser(jwt)
         idempotencyKey?.trim()?.takeIf { it.isNotBlank() }?.let { key ->
-            orders.findByUserIdAndIdempotencyKey(user.id!!, key)?.let { return it.dto() }
+            orders.findByUserSubAndIdempotencyKey(jwt.subject, key)?.let { return it.dto() }
         }
         val grouped = request.items.groupBy { it.productId }.mapValues { (_, lines) -> lines.sumOf { it.quantity } }
-        val order = Order(user = user, shippingAddress = request.shippingAddress.trim(), contactPhone = request.contactPhone.trim(), idempotencyKey = idempotencyKey?.trim()?.takeIf { it.isNotBlank() })
+        val order = Order(
+            identityUserId = user.id!!,
+            userSub = jwt.subject,
+            userEmail = user.email,
+            shippingAddress = request.shippingAddress.trim(),
+            contactPhone = request.contactPhone.trim(),
+            idempotencyKey = idempotencyKey?.trim()?.takeIf { it.isNotBlank() }
+        )
         var total = BigDecimal.ZERO
         grouped.forEach { (productId, quantity) ->
             val product = products.findByIdForUpdate(productId).orElseThrow { IllegalArgumentException("Producto $productId no encontrado") }
@@ -97,7 +132,9 @@ class OrderService(
             order.items.add(OrderItem(order = order, product = product, productName = product.name, unitPriceUsd = product.priceUsd, quantity = quantity, subtotalUsd = subtotal))
         }
         order.totalUsd = total
-        return orders.save(order).dto()
+        val saved = orders.save(order)
+        orderStatusHistory.save(OrderStatusHistory(order = saved, changedByIdentityUserId = user.id, changedBySub = jwt.subject, status = saved.status))
+        return saved.dto()
     }
 
     @Transactional
@@ -117,7 +154,16 @@ class OrderService(
             }
         }
         order.status = next; order.updatedAt = LocalDateTime.now()
-        return orders.save(order).dto()
+        val saved = orders.save(order)
+        orderStatusHistory.save(
+            OrderStatusHistory(
+                order = saved,
+                changedByIdentityUserId = users.findByCognitoSub(jwt.subject)?.id,
+                changedBySub = jwt.subject,
+                status = next
+            )
+        )
+        return saved.dto()
     }
 
     private fun Order.dto(): OrderResponse {
@@ -128,7 +174,7 @@ class OrderService(
             append("Total: USD $totalUsd")
             append("\nEntrega: $shippingAddress\nContacto: $contactPhone")
         }
-        val url = "https://wa.me/${whatsappNumber.filter { it.isDigit() }}?text=${URLEncoder.encode(message, StandardCharsets.UTF_8)}"
+        val url = "https://wa.me/$normalizedWhatsappNumber?text=${URLEncoder.encode(message, StandardCharsets.UTF_8)}"
         return OrderResponse(id, createdAt.toString(), updatedAt.toString(), totalUsd, status, shippingAddress, contactPhone, lines, url)
     }
 }
@@ -143,5 +189,5 @@ class OrderController(private val service: OrderService) {
 @RestController @RequestMapping("/api/admin/orders") @PreAuthorize("hasAnyRole('ADMIN','VENDOR')")
 class AdminOrderController(private val service: OrderService) {
     @GetMapping fun list() = mapOf("orders" to service.listAll())
-    @PatchMapping("/{id}") fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID, @RequestBody request: OrderStatusRequest) = mapOf("order" to service.updateStatus(jwt, id, request))
+    @PatchMapping("/{id}") fun update(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID, @Valid @RequestBody request: OrderStatusRequest) = mapOf("order" to service.updateStatus(jwt, id, request))
 }

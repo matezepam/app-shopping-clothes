@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*
 import java.text.Normalizer
 import java.time.LocalDateTime
 
-@Entity @Table(name = "categories")
+@Entity @Table(name = "categories", schema = "commerce")
 class Category(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
     @Column(nullable = false, length = 100) var name: String,

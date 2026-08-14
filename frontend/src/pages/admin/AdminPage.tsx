@@ -85,16 +85,18 @@ export function AdminPage() {
   const [message, setMessage] = useState("");
 
   const isAdmin = user?.roles?.includes("ADMIN") ?? false;
+  const canManageProducts = user?.roles?.some((role) => role === "ADMIN" || role === "VENDOR") ?? false;
+  const canViewProducts = user?.roles?.some((role) => ["ADMIN", "VENDOR", "MODERATOR"].includes(role)) ?? false;
 
   const loadProducts = async () => {
-    if (!token || !isAdmin) return;
+    if (!token || !canViewProducts) return;
     const { products: nextProducts } = await api.adminProducts(token);
     setProducts(nextProducts);
   };
 
   useEffect(() => {
     void loadProducts();
-  }, [token, isAdmin]);
+  }, [token, canViewProducts]);
 
   const stats = useMemo(() => {
     return {
@@ -144,7 +146,7 @@ export function AdminPage() {
   };
 
   const saveProduct = async () => {
-    if (!token) return;
+    if (!token || !canManageProducts) return;
     setMessage("");
 
     const payload = {
@@ -183,7 +185,7 @@ export function AdminPage() {
   };
 
   const toggleProductStatus = async (product: Product) => {
-    if (!token) return;
+    if (!token || !canManageProducts) return;
     await api.updateProduct(token, product.id, {
       ...toForm(product),
       status: product.status === "active" ? "disabled" : "active",
@@ -192,7 +194,7 @@ export function AdminPage() {
     await refreshProducts();
   };
 
-  if (!user || !isAdmin) {
+  if (!user || !canViewProducts) {
     return (
       <section className="mx-auto flex min-h-[55vh] max-w-xl flex-col items-center justify-center text-center">
         <AlertTriangle size={42} className="text-primary" />
@@ -206,6 +208,14 @@ export function AdminPage() {
   return (
     <div className="space-y-7">
       <section className="rounded-[2rem] bg-[#0a0f1a] p-8 text-white shadow-2xl shadow-black/15">
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-300">
+            <CheckCircle2 size={15} /> Sesión verificada por AWS Cognito
+          </span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70">
+            Rol activo: {user.roles.join(" · ")}
+          </span>
+        </div>
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">
           {t("adminProducts.eyebrow")}
         </p>
@@ -220,14 +230,14 @@ export function AdminPage() {
           </div>
           <div className="flex flex-wrap gap-3">
           <Link to="/admin/operations" className="inline-flex items-center justify-center rounded-full border border-white/20 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10">Operaciones</Link>
-          <button
+          {canManageProducts ? <button
             type="button"
             onClick={openCreate}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-white"
           >
             <Plus size={18} />
             {t("adminProducts.add")}
-          </button>
+          </button> : null}
           </div>
         </div>
       </section>
@@ -333,30 +343,30 @@ export function AdminPage() {
                   </td>
                   <td className="p-4">
                     <div className="flex justify-end gap-2">
-                      <button
+                      {canManageProducts ? <button
                         type="button"
                         onClick={() => void toggleProductStatus(product)}
                         className="rounded-xl border border-neutral-200 p-2 transition hover:bg-neutral-100"
                         title={t("adminProducts.toggle")}
                       >
                         <CheckCircle2 size={17} />
-                      </button>
-                      <button
+                      </button> : null}
+                      {canManageProducts ? <button
                         type="button"
                         onClick={() => openEdit(product)}
                         className="rounded-xl border border-neutral-200 p-2 transition hover:bg-neutral-100"
                         title={t("adminProducts.edit")}
                       >
                         <Edit3 size={17} />
-                      </button>
-                      <button
+                      </button> : null}
+                      {isAdmin ? <button
                         type="button"
                         onClick={() => void deleteProduct(product.id)}
                         className="rounded-xl border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
                         title={t("adminProducts.delete")}
                       >
                         <Trash2 size={17} />
-                      </button>
+                      </button> : null}
                     </div>
                   </td>
                 </tr>

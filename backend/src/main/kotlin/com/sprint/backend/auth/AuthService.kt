@@ -7,7 +7,6 @@ import com.sprint.backend.auth.dto.LoginRequest
 import com.sprint.backend.auth.dto.RegisterRequest
 import com.sprint.backend.auth.dto.RegistrationResponse
 import com.sprint.backend.auth.dto.UpdateProfileRequest
-import com.sprint.backend.config.NotFoundException
 import com.sprint.backend.config.ForbiddenException
 import com.sprint.backend.users.User
 import com.sprint.backend.users.UserRepository
@@ -24,7 +23,7 @@ class AuthService(
     private val userRepository: UserRepository,
     private val cognito: CognitoAuthService
 ) {
-    @Transactional
+    @Transactional("identityTransactionManager")
     fun register(request: RegisterRequest): RegistrationResponse {
         val age = Period.between(request.birthDate, LocalDate.now()).years
         require(age >= 13) { "Debes tener al menos 13 años" }
@@ -47,11 +46,32 @@ class AuthService(
         return registration
     }
 
-    fun login(request: LoginRequest): AuthResponse = cognito.login(request)
+    @Transactional("identityTransactionManager")
+    fun login(request: LoginRequest): AuthResponse {
+        val response = cognito.login(request)
+        val identity = cognito.identity(response.token)
+        val user = userRepository.findByCognitoSub(identity.sub)
+            ?: userRepository.findByEmail(identity.email)
+            ?: User(
+                firstName = identity.firstName,
+                lastName = identity.lastName,
+                email = identity.email,
+                cognitoSub = identity.sub,
+                phone = identity.phone
+            )
 
+        user.cognitoSub = identity.sub
+        user.firstName = identity.firstName
+        user.lastName = identity.lastName
+        user.phone = identity.phone ?: user.phone
+        userRepository.save(user)
+        return response
+    }
+
+    @Transactional("identityTransactionManager")
     fun me(jwt: Jwt): AuthUserResponse = toUserResponse(currentUser(jwt), groups(jwt))
 
-    @Transactional
+    @Transactional("identityTransactionManager")
     fun updateProfile(jwt: Jwt, request: UpdateProfileRequest): AuthUserResponse {
         val user = currentUser(jwt)
         request.firstName?.trim()?.takeIf { it.isNotBlank() }?.let { user.firstName = it }
@@ -73,7 +93,7 @@ class AuthService(
         return toUserResponse(userRepository.save(user), groups(jwt))
     }
 
-    @Transactional
+    @Transactional("identityTransactionManager")
     fun updateAvatar(jwt: Jwt, file: MultipartFile): AuthUserResponse {
         require(!file.isEmpty) { "La imagen es requerida" }
         val contentType = file.contentType ?: ""
@@ -84,7 +104,7 @@ class AuthService(
         return toUserResponse(userRepository.save(user), groups(jwt))
     }
 
-    @Transactional
+    @Transactional("identityTransactionManager")
     fun deleteAvatar(jwt: Jwt): AuthUserResponse {
         val user = currentUser(jwt)
         user.avatarUrl = null
@@ -95,9 +115,29 @@ class AuthService(
         cognito.changePassword(jwt.tokenValue, request.currentPassword, request.newPassword)
     }
 
+    @Transactional("identityTransactionManager")
     fun currentUser(jwt: Jwt): User {
-        val user = userRepository.findByCognitoSub(jwt.subject)
-            ?: throw NotFoundException("El perfil local asociado a Cognito no existe")
+        val user = userRepository.findByCognitoSub(jwt.subject) ?: run {
+            val identity = cognito.identity(jwt.tokenValue)
+            val existing = userRepository.findByEmail(identity.email)
+            if (existing != null) {
+                existing.cognitoSub = identity.sub
+                existing.firstName = identity.firstName
+                existing.lastName = identity.lastName
+                existing.phone = identity.phone ?: existing.phone
+                userRepository.save(existing)
+            } else {
+                userRepository.save(
+                    User(
+                        firstName = identity.firstName,
+                        lastName = identity.lastName,
+                        email = identity.email,
+                        cognitoSub = identity.sub,
+                        phone = identity.phone
+                    )
+                )
+            }
+        }
         if (!user.enabled) throw ForbiddenException("El perfil comercial está deshabilitado")
         return user
     }

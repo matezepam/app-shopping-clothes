@@ -6,6 +6,7 @@ import { Footer } from "./Footer";
 import { useStore } from "../../context/StoreContext";
 import { formatMoney, fromUsd } from "../../lib/currency";
 import { persistLanguage } from "../../i18n/config";
+import { hasAnyRole, primaryRole, ROLE_CONFIG } from "../../lib/roles";
 
 const guestAvatar = "/images/profile/default-avatar.svg";
 const userAvatar = "/images/profile/login-avatar.svg";
@@ -50,7 +51,8 @@ export function Layout() {
     ? `${user.firstName} ${user.lastName}`.trim()
     : "";
 
-  const isAdmin = user?.roles?.includes("ADMIN") ?? false;
+  const isStaff = hasAnyRole(user?.roles, ["ADMIN", "VENDOR", "MODERATOR"]);
+  const roleLabel = ROLE_CONFIG[primaryRole(user?.roles)].label;
 
   const currentAvatar = user ? user.avatarUrl || userAvatar : guestAvatar;
 
@@ -523,7 +525,7 @@ export function Layout() {
                           </p>
 
                           <p className="mt-1 inline-flex rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">
-                            {isAdmin ? "ADMIN" : "USER"}
+                            {roleLabel}
                           </p>
                         </div>
                       </div>
@@ -568,7 +570,7 @@ export function Layout() {
                         {t("nav.settings")}
                       </NavLink>
 
-                      {isAdmin ? (
+                      {isStaff ? (
                         <NavLink
                           to="/admin"
                           onClick={() => setUserOpen(false)}

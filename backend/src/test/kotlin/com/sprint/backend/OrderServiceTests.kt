@@ -20,6 +20,8 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 @SpringBootTest
 @Transactional
@@ -33,6 +35,7 @@ class OrderServiceTests(
 
     @BeforeEach
     fun prepare() {
+        users.deleteAll()
         users.save(User(firstName = "Cliente", lastName = "Prueba", email = "cliente@example.com", cognitoSub = "customer-sub"))
         products.save(Product(id = "test-product", sku = "TEST-001", name = "Producto", collection = "men", category = "shirts", subcategory = "camisetas", concept = "andes", priceUsd = BigDecimal("12.50"), image = "/product.svg", gender = "male", color = "negro", stock = 5, status = "active", moderationStatus = "APPROVED"))
         jwt = Jwt.withTokenValue("test-access-token").header("alg", "none").subject("customer-sub").claim("cognito:groups", listOf("USER")).build()
@@ -46,7 +49,11 @@ class OrderServiceTests(
         assertEquals(first.id, second.id)
         assertEquals(3, products.findById("test-product").orElseThrow().stock)
         assertEquals(BigDecimal("25.00"), first.totalUsd)
-        assert(first.whatsappUrl.startsWith("https://wa.me/"))
+        assert(first.whatsappUrl.startsWith("https://wa.me/593939051525?text="))
+        val decodedMessage = URLDecoder.decode(first.whatsappUrl.substringAfter("?text="), StandardCharsets.UTF_8)
+        assert(decodedMessage.contains(first.id.toString()))
+        assert(decodedMessage.contains("2 x Producto"))
+        assert(decodedMessage.contains("Total: USD 25.00"))
     }
 
     @Test
@@ -67,5 +74,17 @@ class OrderServiceTests(
         returnService.patch(jwt, returned.id, PatchReturnRequest("APPROVED", "Procede"))
         returnService.patch(jwt, returned.id, PatchReturnRequest("RECEIVED", "Producto recibido"))
         assertEquals(5, products.findById("test-product").orElseThrow().stock)
+    }
+
+    @Test
+    fun `return cannot be received before approval`() {
+        val order = service.create(jwt, CheckoutRequest(listOf(CheckoutLine("test-product", 1)), "Quito", "+593999999999"), "invalid-return-transition")
+        service.updateStatus(jwt, order.id, OrderStatusRequest("CONFIRMED"))
+        service.updateStatus(jwt, order.id, OrderStatusRequest("PREPARING"))
+        service.updateStatus(jwt, order.id, OrderStatusRequest("SHIPPED"))
+        service.updateStatus(jwt, order.id, OrderStatusRequest("DELIVERED"))
+        val returned = returnService.create(jwt, CreateReturnRequest(order.id.toString(), "test-product", 1, "Talla incorrecta"))
+        assertThrows(IllegalArgumentException::class.java) { returnService.patch(jwt, returned.id, PatchReturnRequest("RECEIVED")) }
+        assertEquals(4, products.findById("test-product").orElseThrow().stock)
     }
 }

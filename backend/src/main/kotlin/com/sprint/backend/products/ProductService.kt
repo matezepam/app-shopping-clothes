@@ -2,6 +2,8 @@ package com.sprint.backend.products
 
 import com.sprint.backend.products.dto.ProductRequest
 import com.sprint.backend.products.dto.ProductResponse
+import com.sprint.backend.config.ConflictException
+import com.sprint.backend.config.NotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.text.Normalizer
@@ -19,12 +21,10 @@ class ProductService(
     }
 
     fun getPublic(id: String): ProductResponse {
-        val product = productRepository.findById(id).orElseThrow {
-            IllegalArgumentException("Producto no encontrado")
-        }
+        val product = productRepository.findById(id).orElseThrow { NotFoundException("Producto no encontrado") }
 
         if (product.status != "active" || product.moderationStatus != "APPROVED") {
-            throw IllegalArgumentException("Producto no disponible")
+            throw NotFoundException("Producto no disponible")
         }
 
         return product.toResponse()
@@ -35,11 +35,11 @@ class ProductService(
 
         val id = request.id?.trim()?.takeIf { it.isNotBlank() } ?: slugify(request.name)
         if (productRepository.existsById(id)) {
-            throw IllegalArgumentException("Ya existe un producto con ese identificador")
+            throw ConflictException("Ya existe un producto con ese identificador")
         }
 
         if (productRepository.existsBySku(request.sku.trim())) {
-            throw IllegalArgumentException("Ya existe un producto con ese SKU")
+            throw ConflictException("Ya existe un producto con ese SKU")
         }
 
         return productRepository.save(request.toProduct(id)).toResponse()
@@ -52,7 +52,7 @@ class ProductService(
         }
 
         productRepository.findBySku(request.sku.trim())?.let {
-            require(it.id == id) { "Ya existe un producto con ese SKU" }
+            if (it.id != id) throw ConflictException("Ya existe un producto con ese SKU")
         }
 
         product.sku = request.sku.trim()

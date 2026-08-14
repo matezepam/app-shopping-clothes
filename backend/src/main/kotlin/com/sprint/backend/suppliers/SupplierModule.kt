@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import java.util.UUID
 
-@Entity @Table(name = "suppliers")
+@Entity @Table(name = "suppliers", schema = "commerce")
 class Supplier(
     @Id val id: UUID = UUID.randomUUID(),
     @Column(nullable = false, length = 160) var name: String,
@@ -23,7 +23,7 @@ class Supplier(
     @Column(length = 30) var phone: String? = null,
     @Column(nullable = false, length = 20) var status: String = "ACTIVE",
     @Column(name = "created_at", nullable = false) val createdAt: LocalDateTime = LocalDateTime.now(),
-    @ManyToMany @JoinTable(name = "supplier_products", joinColumns = [JoinColumn(name = "supplier_id")], inverseJoinColumns = [JoinColumn(name = "product_id")])
+    @ManyToMany @JoinTable(name = "supplier_products", schema = "commerce", joinColumns = [JoinColumn(name = "supplier_id")], inverseJoinColumns = [JoinColumn(name = "product_id")])
     val products: MutableSet<Product> = mutableSetOf()
 )
 
@@ -33,6 +33,7 @@ data class SupplierResponse(val id: UUID, val name: String, val taxId: String, v
 
 @Service
 class SupplierService(private val repo: SupplierRepository, private val productRepo: ProductRepository) {
+    @Transactional(readOnly = true)
     fun list() = repo.findAll().sortedBy { it.name }.map { it.dto() }
     @Transactional fun create(r: SupplierRequest): SupplierResponse {
         require(!repo.existsByTaxId(r.taxId.trim())) { "Ya existe un proveedor con esa identificación" }

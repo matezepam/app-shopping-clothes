@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import java.util.UUID
 
-@Entity @Table(name = "return_requests")
+@Entity @Table(name = "return_requests", schema = "commerce")
 class ReturnRequestEntity(
     @Id val id: UUID = UUID.randomUUID(),
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "order_id", nullable = false) val order: Order,
@@ -37,7 +37,7 @@ class ReturnRequestEntity(
 )
 
 interface ReturnRequestRepository : JpaRepository<ReturnRequestEntity, UUID> {
-    fun findAllByOrderUserIdOrderByCreatedAtDesc(userId: Long): List<ReturnRequestEntity>
+    fun findAllByOrderUserSubOrderByCreatedAtDesc(userSub: String): List<ReturnRequestEntity>
     fun findAllByOrderByCreatedAtDesc(): List<ReturnRequestEntity>
     fun findAllByOrderIdAndProductId(orderId: UUID, productId: String): List<ReturnRequestEntity>
     fun countByStatus(status: String): Long
@@ -52,15 +52,21 @@ class ReturnService(
     private val auth: AuthService, private val returns: ReturnRequestRepository, private val orders: OrderRepository,
     private val products: ProductRepository, private val inventory: InventoryService
 ) {
-    fun listMine(jwt: Jwt) = returns.findAllByOrderUserIdOrderByCreatedAtDesc(auth.currentUser(jwt).id!!).map { it.dto() }
+    @Transactional(readOnly = true)
+    fun listMine(jwt: Jwt): List<ReturnResponse> {
+        auth.currentUser(jwt)
+        return returns.findAllByOrderUserSubOrderByCreatedAtDesc(jwt.subject).map { it.dto() }
+    }
+
+    @Transactional(readOnly = true)
     fun listAll() = returns.findAllByOrderByCreatedAtDesc().map { it.dto() }
 
     @Transactional
     fun create(jwt: Jwt, r: CreateReturnRequest): ReturnResponse {
-        val user = auth.currentUser(jwt)
+        auth.currentUser(jwt)
         val orderId = runCatching { UUID.fromString(r.orderId) }.getOrElse { throw IllegalArgumentException("Pedido inválido") }
         val order = orders.findById(orderId).orElseThrow { IllegalArgumentException("Pedido no encontrado") }
-        require(order.user.id == user.id) { "El pedido no pertenece al usuario" }
+        require(order.userSub == jwt.subject) { "El pedido no pertenece al usuario" }
         require(order.status == "DELIVERED") { "Solo se aceptan devoluciones de pedidos entregados" }
         val line = order.items.find { it.product.id == r.productId } ?: throw IllegalArgumentException("El producto no pertenece al pedido")
         val requested = returns.findAllByOrderIdAndProductId(orderId, r.productId).filter { it.status != "REJECTED" }.sumOf { it.quantity }
@@ -73,7 +79,8 @@ class ReturnService(
         val entity = returns.findById(id).orElseThrow { IllegalArgumentException("Devolución no encontrada") }
         val next = r.status.uppercase()
         require(next in setOf("APPROVED", "REJECTED", "RECEIVED")) { "Estado de devolución no permitido" }
-        require(!(entity.status in setOf("REJECTED", "RECEIVED"))) { "La devolución ya está cerrada" }
+        val transitions = mapOf("REQUESTED" to setOf("APPROVED", "REJECTED"), "APPROVED" to setOf("RECEIVED"), "REJECTED" to emptySet(), "RECEIVED" to emptySet())
+        require(next in (transitions[entity.status] ?: emptySet())) { "Transición de devolución no permitida" }
         if (next == "RECEIVED" && !entity.stockRestored) {
             val product = products.findByIdForUpdate(entity.product.id).orElseThrow()
             product.stock += entity.quantity; products.save(product)
@@ -84,7 +91,7 @@ class ReturnService(
         return returns.save(entity).dto()
     }
 
-    private fun ReturnRequestEntity.dto() = ReturnResponse(id, order.id, product.id, quantity, reason, status, createdAt.toString(), adminNote, order.user.email)
+    private fun ReturnRequestEntity.dto() = ReturnResponse(id, order.id, product.id, quantity, reason, status, createdAt.toString(), adminNote, order.userEmail)
 }
 
 @RestController @RequestMapping("/api/returns")

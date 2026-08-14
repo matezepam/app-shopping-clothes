@@ -67,6 +67,12 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.cognito.generated
+.run/
+backups/
+infra/pgadmin/pgpass.generated
+output/
+tmp/
 .env.*
 !.env.example
 

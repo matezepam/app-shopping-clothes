@@ -14,7 +14,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", schema = "identity")
 class User(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

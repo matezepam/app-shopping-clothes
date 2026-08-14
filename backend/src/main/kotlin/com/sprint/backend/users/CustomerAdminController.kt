@@ -15,7 +15,7 @@ class CustomerAdminController(private val users: UserRepository) {
     fun list() = mapOf("customers" to users.findAll().sortedByDescending { it.createdAt }.map { it.dto() })
 
     @PatchMapping("/{id}")
-    @Transactional
+    @Transactional("identityTransactionManager")
     fun status(@PathVariable id: Long, @RequestBody request: CustomerStatusRequest): Map<String, CustomerResponse> {
         val user = users.findById(id).orElseThrow { IllegalArgumentException("Cliente no encontrado") }
         user.enabled = request.enabled

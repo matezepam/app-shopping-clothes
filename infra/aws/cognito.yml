@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Amazon Cognito para Sprint con roles de Administrador, Moderador, Vendedor y Cliente.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: sprint-clothes
+    AllowedPattern: "[a-zA-Z0-9-]+"
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DependsOn: DefaultUserRolePermission
+    Properties:
+      UserPoolName: !Sub "${ProjectName}-users"
+      UserPoolTier: LITE
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      DeletionProtection: INACTIVE
+      MfaConfiguration: "OFF"
+      LambdaConfig:
+        PostConfirmation: !GetAtt DefaultUserRoleFunction.Arn
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 10
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 3
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: given_name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: family_name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: phone_number
+          AttributeDataType: String
+          Mutable: true
+          Required: false
+      UserPoolTags:
+        Project: Sprint
+        Purpose: Thesis-evidence
+
+  DefaultUserRoleExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-cognito-default-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: assign-default-cognito-group
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: cognito-idp:AdminAddUserToGroup
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+
+  DefaultUserRoleFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-assign-customer-role"
+      Description: Asigna USER a toda cuenta confirmada; los roles internos solo se administran en Cognito.
+      Runtime: python3.13
+      Handler: index.handler
+      Timeout: 10
+      Role: !GetAtt DefaultUserRoleExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+
+          def handler(event, context):
+              boto3.client("cognito-idp").admin_add_user_to_group(
+                  UserPoolId=event["userPoolId"],
+                  Username=event["userName"],
+                  GroupName="USER"
+              )
+              return event
+
+  DefaultUserRolePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DefaultUserRoleFunction
+      Principal: cognito-idp.amazonaws.com
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${ProjectName}-backend"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 7
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+      ReadAttributes:
+        - email
+        - email_verified
+        - given_name
+        - family_name
+        - phone_number
+      WriteAttributes:
+        - email
+        - given_name
+        - family_name
+        - phone_number
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: ADMIN
+      Description: Administrador - control total, reportes y usuarios.
+      Precedence: 1
+      UserPoolId: !Ref UserPool
+
+  ModeratorGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: MODERATOR
+      Description: Moderador - aprueba, observa o rechaza publicaciones.
+      Precedence: 2
+      UserPoolId: !Ref UserPool
+
+  VendorGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: VENDOR
+      Description: Vendedor - productos, inventario, proveedores y pedidos.
+      Precedence: 3
+      UserPoolId: !Ref UserPool
+
+  CustomerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: USER
+      Description: Cliente - catálogo, pedidos, devoluciones y perfil.
+      Precedence: 4
+      UserPoolId: !Ref UserPool
+
+Outputs:
+  UserPoolId:
+    Description: AWS_COGNITO_USER_POOL_ID
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: AWS_COGNITO_CLIENT_ID
+    Value: !Ref UserPoolClient
+  Issuer:
+    Description: Emisor usado para validar JWT
+    Value: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"

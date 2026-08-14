@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "../../context/StoreContext";
 import { formatMoney, fromUsd } from "../../lib/currency";
+import { ArrowRight, BadgeCheck, ShieldCheck } from "lucide-react";
+import { hasAnyRole, primaryRole, ROLE_CONFIG } from "../../lib/roles";
 
 const userAvatar = "/images/profile/login-avatar.svg";
 
@@ -19,6 +21,9 @@ export default function UserDashboardPage() {
   const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const recentOrders = orders.slice(0, 3);
+  const activeRole = primaryRole(user?.roles);
+  const role = ROLE_CONFIG[activeRole];
+  const isStaff = hasAnyRole(user?.roles, ["ADMIN", "VENDOR", "MODERATOR"]);
 
   return (
     <section className="animate-fade-up space-y-8">
@@ -61,6 +66,30 @@ export default function UserDashboardPage() {
           </div>
         </div>
       </div>
+
+      <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <article className="surface-card overflow-hidden p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">Acceso verificado por Cognito</p>
+              <h2 className="mt-2 font-display text-2xl font-black text-neutral-950">Rol: {role.label}</h2>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">{role.description}</p>
+            </div>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><BadgeCheck size={24} /></span>
+          </div>
+          {isStaff ? <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <Link to="/admin" className="primary-action">Gestionar catálogo <ArrowRight size={16} /></Link>
+            <Link to="/admin/operations" className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/10 px-4 py-3 text-sm font-black transition hover:border-accent hover:text-accent">Centro de operaciones <ArrowRight size={16} /></Link>
+          </div> : <Link to="/" className="primary-action mt-5 w-full">Explorar catálogo <ArrowRight size={16} /></Link>}
+        </article>
+
+        <article className="surface-card p-6">
+          <div className="flex items-center gap-3"><ShieldCheck className="text-accent" size={22} /><h2 className="font-display text-xl font-black">Permisos habilitados</h2></div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {role.permissions.map((permission) => <div key={permission} className="flex items-center gap-2 rounded-2xl bg-neutral-50 px-4 py-3 text-sm font-bold text-neutral-700"><span className="h-2 w-2 rounded-full bg-emerald-500" />{permission}</div>)}
+          </div>
+        </article>
+      </section>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <article className="group rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">

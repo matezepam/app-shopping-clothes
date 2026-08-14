@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import java.util.UUID
 
-@Entity @Table(name = "inventory_movements")
+@Entity @Table(name = "inventory_movements", schema = "commerce")
 class InventoryMovement(
     @Id val id: UUID = UUID.randomUUID(),
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "product_id", nullable = false) val product: Product,
@@ -47,6 +47,7 @@ data class InventoryResponse(val id: UUID, val productId: String, val productNam
 
 @Service
 class InventoryService(private val products: ProductRepository, private val suppliers: SupplierRepository, private val movements: InventoryMovementRepository) {
+    @Transactional(readOnly = true)
     fun list() = movements.findAllByOrderByCreatedAtDesc().map { it.dto() }
 
     @Transactional
@@ -69,7 +70,7 @@ class InventoryService(private val products: ProductRepository, private val supp
     private fun InventoryMovement.dto() = InventoryResponse(id, product.id, product.name, supplier?.id, type, quantity, resultingStock, reference, createdBy, createdAt.toString())
 }
 
-@RestController @RequestMapping("/api/admin/inventory") @PreAuthorize("hasAnyRole('ADMIN','VENDOR','SUPPLIER')")
+@RestController @RequestMapping("/api/admin/inventory") @PreAuthorize("hasAnyRole('ADMIN','VENDOR')")
 class InventoryController(private val service: InventoryService) {
     @GetMapping fun list() = mapOf("movements" to service.list())
     @PostMapping @ResponseStatus(HttpStatus.CREATED)

@@ -1,11 +1,14 @@
 import { useState, type FormEvent } from "react";
 import {
   ArrowRight,
+  BadgeCheck,
+  Cloud,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
   ShieldCheck,
+  UsersRound,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
@@ -42,7 +45,7 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-      nav("/");
+      nav("/dashboard");
     } catch (err) {
       setError(
         err instanceof Error
@@ -65,6 +68,11 @@ export function LoginPage() {
 
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(10,15,26,0.92),rgba(10,15,26,0.25)_48%,rgba(247,183,51,0.2))]" />
 
+        <div className="absolute left-8 top-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white backdrop-blur-xl">
+          <Cloud size={15} className="text-primary" />
+          Amazon Cognito · us-east-1
+        </div>
+
         <div className="absolute inset-x-8 bottom-8 rounded-3xl border border-white/15 bg-white/10 p-6 text-white shadow-2xl shadow-black/20 backdrop-blur-md">
           <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-[#0a0f1a] shadow-lg shadow-black/20">
             <ShieldCheck size={24} />
@@ -83,9 +91,16 @@ export function LoginPage() {
         </div>
       </div>
 
-      <div className="flex min-h-[620px] items-center bg-background p-6 sm:p-10">
+      <div className="flex min-h-[620px] items-center bg-[radial-gradient(circle_at_top_right,rgba(247,183,51,0.12),transparent_36%),linear-gradient(180deg,#fff,#fbfaf7)] p-6 sm:p-10">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 shadow-sm">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              </span>
+              {t("auth.productionConnected")}
+            </div>
             <h1 className="font-display text-4xl font-bold leading-tight text-foreground">
               {t("auth.login", "Iniciar sesión")}
             </h1>
@@ -194,6 +209,22 @@ export function LoginPage() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                [BadgeCheck, t("auth.identityBadge")],
+                [UsersRound, t("auth.rolesBadge")],
+                [ShieldCheck, t("auth.sessionBadge")],
+              ].map(([Icon, label]) => {
+                const SecurityIcon = Icon as typeof BadgeCheck;
+                return (
+                  <div key={String(label)} className="rounded-2xl border border-black/10 bg-white/80 px-2 py-3 text-center shadow-sm backdrop-blur">
+                    <SecurityIcon size={18} className="mx-auto text-accent" />
+                    <p className="mt-2 text-[11px] font-black leading-4 text-neutral-700">{String(label)}</p>
+                  </div>
+                );
+              })}
             </div>
 
             {error ? (

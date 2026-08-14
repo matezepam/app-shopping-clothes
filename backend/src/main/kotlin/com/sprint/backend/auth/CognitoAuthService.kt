@@ -21,6 +21,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeMismatc
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmForgotPasswordRequest
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmSignUpRequest
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest
+import software.amazon.awssdk.services.cognitoidentityprovider.model.GetUserRequest
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest
 import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthorizedException
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ResendConfirmationCodeRequest
@@ -110,6 +111,24 @@ class CognitoAuthService(
         }
     }
 
+    /**
+     * Reads the verified identity directly from Cognito. This lets users created
+     * by an administrator (for example the demo role accounts) obtain their
+     * local commercial profile on first login without storing a password here.
+     */
+    fun identity(accessToken: String): CognitoIdentity {
+        val response = cognito.getUser(GetUserRequest.builder().accessToken(accessToken).build())
+        val attributes = response.userAttributes().associate { it.name() to it.value() }
+        return CognitoIdentity(
+            sub = attributes["sub"] ?: throw UnauthorizedException("Cognito no devolvió el identificador del usuario"),
+            email = attributes["email"]?.trim()?.lowercase()
+                ?: throw UnauthorizedException("Cognito no devolvió el correo del usuario"),
+            firstName = attributes["given_name"]?.trim()?.ifBlank { null } ?: "Usuario",
+            lastName = attributes["family_name"]?.trim()?.ifBlank { null } ?: "Sprint",
+            phone = attributes["phone_number"]?.trim()?.ifBlank { null }
+        )
+    }
+
     fun refresh(refreshToken: String, username: String): AuthResponse {
         val parameters = mutableMapOf("REFRESH_TOKEN" to refreshToken)
         secretHash(username.trim().lowercase())?.let { parameters["SECRET_HASH"] = it }
@@ -162,3 +181,11 @@ class CognitoAuthService(
         listOfNotNull(it.deliveryMediumAsString(), it.destination()).joinToString(": ")
     }
 }
+
+data class CognitoIdentity(
+    val sub: String,
+    val email: String,
+    val firstName: String,
+    val lastName: String,
+    val phone: String?
+)

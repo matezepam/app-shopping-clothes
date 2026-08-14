@@ -32,7 +32,7 @@ export type ProductColor =
   | "plateado"
   | "rosa";
 
-export type UserRole = "USER" | "ADMIN" | "VENDOR" | "SUPPLIER" | "MODERATOR";
+export type UserRole = "USER" | "ADMIN" | "VENDOR" | "MODERATOR";
 
 export interface Product {
   id: string;

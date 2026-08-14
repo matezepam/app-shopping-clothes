@@ -4,7 +4,7 @@ services:
     container_name: sprint-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: ${IDENTITY_DATABASE:-sprint_identity}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
@@ -14,3 +14,4 @@ services:
 
 volumes:
   sprint_postgres_data:
+    name: sprint_clothes_postgres_data

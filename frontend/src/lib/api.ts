@@ -2,6 +2,28 @@ import type { Order, Product, ReturnRequest, User } from "../types/store";
 
 const base = () => import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
 
+export class ApiClientError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly requestId?: string;
+  readonly validationErrors?: Record<string, string>;
+
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    requestId?: string,
+    validationErrors?: Record<string, string>,
+  ) {
+    super(requestId ? `${message} · Ref. ${requestId}` : message);
+    this.name = "ApiClientError";
+    this.status = status;
+    this.code = code;
+    this.requestId = requestId;
+    this.validationErrors = validationErrors;
+  }
+}
+
 async function request<T>(path: string, options: RequestInit & { token?: string | null } = {}): Promise<T> {
   const { token, headers, ...rest } = options;
   const isFormData = rest.body instanceof FormData;
@@ -13,8 +35,11 @@ async function request<T>(path: string, options: RequestInit & { token?: string 
       ...headers,
     },
   }).catch(() => { throw new Error("No se pudo conectar con el servicio de Sprint."); });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string; message?: string };
-  if (!res.ok) throw new Error(String(data?.error || data?.message || res.statusText));
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string; message?: string; code?: string; requestId?: string; validationErrors?: Record<string, string> };
+  if (!res.ok) {
+    const requestId = data.requestId || res.headers.get("X-Request-ID") || undefined;
+    throw new ApiClientError(String(data?.error || data?.message || res.statusText), res.status, data.code, requestId, data.validationErrors);
+  }
   return data as T;
 }
 

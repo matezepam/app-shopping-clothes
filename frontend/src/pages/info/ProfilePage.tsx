@@ -21,6 +21,7 @@ import {
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "../../context/StoreContext";
+import { primaryRole, ROLE_CONFIG } from "../../lib/roles";
 import { formatMoney, fromUsd } from "../../lib/currency";
 import { persistLanguage } from "../../i18n/config";
 import type { CurrencyCode } from "../../types/store";
@@ -108,6 +109,7 @@ export default function ProfilePage() {
   }, [user]);
 
   const fullName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
+  const roleLabel = ROLE_CONFIG[primaryRole(user?.roles)].label;
   const pendingText = t("profile.common.pending");
 
   const totalSpentUsd = useMemo(
@@ -392,7 +394,7 @@ export default function ProfilePage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-full bg-primary/20 px-3 py-1 text-[11px] font-bold text-primary">
-                    {user.roles.includes("ADMIN") ? "ADMIN" : "USER"}
+                    {roleLabel}
                   </span>
 
                   <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-[11px] font-bold text-emerald-300">
@@ -796,7 +798,7 @@ export default function ProfilePage() {
                             {t("profile.accountStatus.role")}
                           </p>
                           <p className="mt-2 font-bold text-neutral-950">
-                            {user.roles.includes("ADMIN") ? "ADMIN" : "USER"}
+                            {roleLabel}
                           </p>
                         </div>
 

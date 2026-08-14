@@ -1,0 +1,305 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Backend productivo Sprint Clothes con EC2, CloudFront HTTPS y PostgreSQL persistente en volumen cifrado.
+
+Parameters:
+  ImageIdentifier:
+    Type: String
+    Default: 570642550443.dkr.ecr.us-east-1.amazonaws.com/sprint-clothes-backend:latest
+  CognitoUserPoolId:
+    Type: String
+    Default: us-east-1_3BpP8D95G
+  CognitoClientId:
+    Type: String
+    Default: 5phag6smpncmfj8kbv694u5oe9
+  FrontendOrigin:
+    Type: String
+    Default: https://sprint-clothes-ecuador.vercel.app
+  WhatsAppBusinessNumber:
+    Type: String
+    Default: "593939051525"
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small]
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  CloudFrontOriginPrefixListId:
+    Type: String
+    AllowedPattern: ^pl-[a-z0-9]+$
+    Default: pl-3b927c52
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.24.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: sprint-clothes-production
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.24.0.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: sprint-public-a
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  BackendSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: API Sprint accesible solamente desde origenes CloudFront
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourcePrefixListId: !Ref CloudFrontOriginPrefixListId
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+
+  DatabasePassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Contrasena PostgreSQL del backend Sprint Clothes
+      GenerateSecretString:
+        ExcludePunctuation: true
+        PasswordLength: 32
+
+  BackendRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: sprint-clothes-backend-instance
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: read-sprint-database-secret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DatabasePassword
+
+  BackendInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref BackendRole
+
+  BackendInstance:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - PublicDefaultRoute
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref BackendInstanceProfile
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !GetAtt BackendSecurityGroup.GroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+            Encrypted: true
+            DeleteOnTermination: false
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          dnf install -y docker
+          systemctl enable --now docker
+          DB_PASSWORD="$(aws secretsmanager get-secret-value --region '${AWS::Region}' --secret-id '${DatabasePassword}' --query SecretString --output text)"
+          aws ecr get-login-password --region '${AWS::Region}' | docker login --username AWS --password-stdin '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com'
+          docker network create sprint-internal
+          docker volume create sprint-postgres-data
+          docker run -d --name sprint-db --restart unless-stopped --network sprint-internal \
+            --log-opt max-size=10m --log-opt max-file=3 \
+            -e POSTGRES_DB='sprint' \
+            -e POSTGRES_USER='sprint_app' \
+            -e POSTGRES_PASSWORD="$DB_PASSWORD" \
+            -v sprint-postgres-data:/var/lib/postgresql/data \
+            postgres:16-alpine
+          for attempt in $(seq 1 60); do
+            if docker exec sprint-db pg_isready -U sprint_app -d sprint; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec sprint-db pg_isready -U sprint_app -d sprint
+          docker pull '${ImageIdentifier}'
+          docker run -d --name sprint-api --restart unless-stopped -p 8080:8080 \
+            --network sprint-internal --log-opt max-size=10m --log-opt max-file=3 \
+            -e SPRING_DATASOURCE_URL='jdbc:postgresql://sprint-db:5432/sprint' \
+            -e SPRING_DATASOURCE_USERNAME='sprint_app' \
+            -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
+            -e AWS_COGNITO_REGION='${AWS::Region}' \
+            -e AWS_COGNITO_USER_POOL_ID='${CognitoUserPoolId}' \
+            -e AWS_COGNITO_CLIENT_ID='${CognitoClientId}' \
+            -e AWS_COGNITO_CLIENT_SECRET='' \
+            -e APP_CORS_ALLOWED_ORIGINS='${FrontendOrigin}' \
+            -e APP_WHATSAPP_BUSINESS_NUMBER='${WhatsAppBusinessNumber}' \
+            -e DB_POOL_MAX_SIZE='8' \
+            -e DB_POOL_MIN_IDLE='2' \
+            '${ImageIdentifier}'
+      Tags:
+        - Key: Name
+          Value: sprint-clothes-api
+        - Key: Application
+          Value: SprintClothes
+
+  BackendElasticIp:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  BackendElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt BackendElasticIp.AllocationId
+      InstanceId: !Ref BackendInstance
+
+  NoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: sprint-clothes-api-no-cache
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: false
+          EnableAcceptEncodingGzip: false
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  AllViewerOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: sprint-clothes-api-all-viewer
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: allExcept
+          Headers:
+            - host
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
+  ApiSecurityHeaders:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: sprint-clothes-api-security
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: false
+            Preload: false
+            Override: true
+
+  BackendDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: BackendElasticIpAssociation
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: API segura Sprint Clothes
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: sprint-backend
+            DomainName: !Sub "${BackendElasticIp}.sslip.io"
+            CustomOriginConfig:
+              HTTPPort: 8080
+              OriginProtocolPolicy: http-only
+              OriginReadTimeout: 60
+              OriginKeepaliveTimeout: 5
+        DefaultCacheBehavior:
+          TargetOriginId: sprint-backend
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref NoCachePolicy
+          OriginRequestPolicyId: !Ref AllViewerOriginRequestPolicy
+          ResponseHeadersPolicyId: !Ref ApiSecurityHeaders
+          Compress: true
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+      Tags:
+        - Key: Application
+          Value: SprintClothes
+
+Outputs:
+  BackendUrl:
+    Description: URL HTTPS publica del backend para VITE_API_URL
+    Value: !Sub "https://${BackendDistribution.DomainName}"
+  DatabaseEndpoint:
+    Description: PostgreSQL aislado en la red Docker privada de la instancia
+    Value: sprint-db:5432
+  DatabaseSecretArn:
+    Description: ARN del secreto; el valor no se expone
+    Value: !Ref DatabasePassword
+  BackendInstanceId:
+    Description: Instancia administrable mediante Systems Manager, sin SSH publico
+    Value: !Ref BackendInstance

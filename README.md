@@ -7,9 +7,31 @@ Aplicación web para catálogo, clientes, inventario, proveedores, solicitudes d
 - Frontend: React 19, TypeScript, Vite, Tailwind CSS e i18next.
 - Backend: Kotlin, Spring Boot 3, Spring Security OAuth2 Resource Server y JPA.
 - Identidad: Amazon Cognito (registro, confirmación, login, recuperación, renovación y grupos).
-- Datos: PostgreSQL administrado, esquema versionado por Flyway.
+- Datos: PostgreSQL 16 aislado en red privada y dividido físicamente en `sprint_identity` (perfiles Cognito) y `sprint_commerce` (operación y auditoría). Cada base tiene su conexión, migraciones Flyway y transacciones independientes.
 - Canal comercial: solicitud persistente y enlace oficial de WhatsApp; no se procesan tarjetas.
-- Despliegue: frontend estático y backend contenedorizado; todos los secretos se inyectan desde el proveedor.
+- Despliegue: Nginx, frontend, backend, PostgreSQL y pgAdmin reproducibles con Docker Compose; los secretos se inyectan desde el entorno o el gestor del proveedor.
+
+## Inicio completo con Docker
+
+Con Docker Desktop iniciado:
+
+```powershell
+.\scripts\docker-up.ps1 -OpenBrowser
+```
+
+La plataforma completa queda en `http://localhost:8088`; Nginx sirve React y dirige `/api/*` al backend. El script importa automáticamente los datos de `backend/.env.cognito.generated` cuando existen. Para verificar la instalación:
+
+```powershell
+.\scripts\smoke-test.ps1
+```
+
+pgAdmin queda disponible en `http://localhost:5050` con el servidor **Sprint - PostgreSQL 16** registrado automáticamente. Si solicita la contraseña local usa `SprintLocal#2026`. La relación entre ambas bases se mantiene mediante `identity_user_id` y `user_sub`; PostgreSQL no admite claves foráneas entre bases físicas diferentes.
+
+Para detener sin borrar PostgreSQL:
+
+```powershell
+.\scripts\docker-down.ps1
+```
 
 ## Funciones implementadas
 
@@ -17,8 +39,11 @@ Aplicación web para catálogo, clientes, inventario, proveedores, solicitudes d
 - Validación de emisor, App Client, expiración y `token_use=access` mediante JWKS de Cognito.
 - Respuestas 401 para token ausente/inválido y 403 para grupo insuficiente.
 - Perfiles asociados al `sub` de Cognito y preferencias de idioma.
+- Aprovisionamiento automático del perfil local al recibir por primera vez un token válido de Cognito.
 - CRUD de productos, categorías y proveedores.
-- Grupos `ADMIN`, `VENDOR`, `SUPPLIER`, `MODERATOR` y `USER` aplicados en backend.
+- Historial persistente de moderación y de cambios de estado de pedidos para auditoría y trazabilidad.
+- Registro automático e inmutable de actividades API con actor Cognito, roles, ruta, resultado, código HTTP, identificador de solicitud y duración; no almacena tokens ni cuerpos sensibles.
+- Grupos `ADMIN`, `VENDOR`, `MODERATOR` y `USER` aplicados en backend.
 - Movimientos trazables de inventario con bloqueo pesimista y saldo no negativo.
 - Solicitudes idempotentes; precio calculado en servidor, reserva transaccional de stock y liberación al cancelar.
 - Resumen y enlace de WhatsApp generados desde la solicitud persistida.
@@ -33,11 +58,12 @@ Aplicación web para catálogo, clientes, inventario, proveedores, solicitudes d
 Copiar únicamente los nombres de `backend/.env.example` al gestor de secretos del proveedor. No subir un `.env` real.
 
 ```text
-SPRING_DATASOURCE_URL=jdbc:postgresql://.../sprint?sslmode=require
-SPRING_DATASOURCE_USERNAME=...
-SPRING_DATASOURCE_PASSWORD=...
+IDENTITY_DATASOURCE_URL=jdbc:postgresql://.../sprint_identity?sslmode=require
+COMMERCE_DATASOURCE_URL=jdbc:postgresql://.../sprint_commerce?sslmode=require
+DATABASE_USERNAME=...
+DATABASE_PASSWORD=...
 APP_CORS_ALLOWED_ORIGINS=https://store.example.com
-APP_WHATSAPP_BUSINESS_NUMBER=593999999999
+APP_WHATSAPP_BUSINESS_NUMBER=593939051525
 AWS_COGNITO_REGION=us-east-1
 AWS_COGNITO_USER_POOL_ID=us-east-1_xxx
 AWS_COGNITO_CLIENT_ID=...
@@ -50,14 +76,9 @@ El frontend requiere:
 VITE_API_URL=https://api.example.com
 ```
 
-## Configuración de Cognito que debe realizar el propietario de AWS
+## Configuración de Cognito desplegada
 
-1. Crear un User Pool con correo verificado y política de contraseña fuerte.
-2. Crear los grupos `USER`, `ADMIN`, `VENDOR`, `SUPPLIER` y `MODERATOR`.
-3. Crear un App Client habilitado para `USER_PASSWORD_AUTH` y `REFRESH_TOKEN_AUTH`; si tiene secreto, guardarlo solo en el backend.
-4. Configurar caducidad de access token y refresh token según la política institucional.
-5. Asignar grupos desde Cognito; la aplicación nunca permite que un usuario se eleve de rol.
-6. Inyectar región, User Pool ID y App Client ID/secret en el servicio desplegado.
+La pila `sprint-cognito` de `infra/aws/cognito.yml` crea el User Pool con correo verificado, política fuerte, App Client, grupos `USER`, `ADMIN`, `VENDOR`, `MODERATOR` y una función posterior a la confirmación que asigna solamente `USER` a cuentas públicas. La aplicación nunca acepta el rol durante el registro ni permite autoelevación.
 
 ## Construcción y pruebas
 
@@ -76,16 +97,20 @@ npm ci
 npm run build
 ```
 
-Las pruebas automatizadas verifican el arranque, 401 sin token, 403 con grupo insuficiente, acceso administrativo, reserva de inventario, rechazo por stock e idempotencia. La validación real de correos/SMS y tokens requiere ejecutar los casos contra el User Pool de defensa.
+Auditoría de dependencias:
+
+```powershell
+cd frontend
+npm audit --audit-level=high
+```
+
+Las pruebas automatizadas verifican el arranque, 401 sin token, 403 con grupo insuficiente, acceso administrativo, reserva de inventario, rechazo por stock e idempotencia. Las pruebas reales de correos, SMS y tokens requieren un User Pool de Cognito configurado.
 
 ## Despliegue
 
-- Backend: construir `backend/Dockerfile` y desplegarlo con HTTPS, variables secretas y acceso restringido a PostgreSQL.
-- PostgreSQL: usar una instancia administrada, TLS, copias automáticas y un usuario con privilegios mínimos.
-- Frontend: desplegar `frontend/dist` y configurar `VITE_API_URL` antes del build.
-- CORS: permitir exclusivamente el dominio definitivo del frontend.
-- Observabilidad: el backend expone el endpoint de salud de Actuator; los logs no deben contener tokens ni datos sensibles.
-
-## Evidencia de tesis
-
-El commit utilizado en la defensa debe ser único. Sobre ese commit se deben ejecutar y conservar los logs de Gradle/Vite, casos API, prueba real de Cognito, prueba del flujo pedido–inventario–WhatsApp, P95, compatibilidad, usabilidad y backup/restore. No se deben marcar como aprobadas tareas cloud que no hayan sido ejecutadas en la cuenta definitiva.
+- Frontend productivo: `https://sprint-clothes-ecuador.vercel.app`.
+- Backend productivo: `https://d2q9niwakr7mc.cloudfront.net` (`/actuator/health`).
+- AWS: CloudFront HTTPS, EC2 sin SSH público, ECR con escaneo, Secrets Manager, Systems Manager y EBS cifrado persistente.
+- CORS permite exclusivamente el dominio definitivo de Vercel.
+- El entorno local usa `compose.yaml`: PostgreSQL no publica puerto, el backend solo es accesible por la red interna y Nginx es el único punto de entrada.
+- La canalización `.github/workflows/ci.yml` repite pruebas, auditoría, build y construcción de contenedores en cada cambio.

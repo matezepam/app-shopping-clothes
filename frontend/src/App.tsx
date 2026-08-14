@@ -176,9 +176,9 @@ export function App() {
 
                     <Route path="returns" element={<ReturnsPage />} />
 
-                    <Route path="admin" element={<ProtectedRoute roles={["ADMIN"]}><AdminPage /></ProtectedRoute>} />
+                    <Route path="admin" element={<ProtectedRoute roles={["ADMIN", "VENDOR", "MODERATOR"]}><AdminPage /></ProtectedRoute>} />
 
-                    <Route path="admin/operations" element={<ProtectedRoute roles={["ADMIN"]}><OperationsPage /></ProtectedRoute>} />
+                    <Route path="admin/operations" element={<ProtectedRoute roles={["ADMIN", "VENDOR", "MODERATOR"]}><OperationsPage /></ProtectedRoute>} />
 
                     <Route path="login" element={<LoginPage />} />
 
