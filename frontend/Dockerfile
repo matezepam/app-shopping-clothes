@@ -8,7 +8,7 @@ ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.28-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 LABEL org.opencontainers.image.title="Sprint Clothes Web" \
       org.opencontainers.image.description="Frontend React servido por Nginx"
 COPY --chown=101:101 nginx.conf /etc/nginx/nginx.conf
