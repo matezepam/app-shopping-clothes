@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /workspace
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
@@ -8,7 +8,7 @@ COPY src src
 RUN --mount=type=cache,target=/root/.gradle ./gradlew clean bootJar --no-daemon \
     && cp "$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)" /workspace/app.jar
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 LABEL org.opencontainers.image.title="Sprint Clothes API" \
       org.opencontainers.image.description="API transaccional Spring Boot con Amazon Cognito" \
       org.opencontainers.image.source="https://github.com/"
