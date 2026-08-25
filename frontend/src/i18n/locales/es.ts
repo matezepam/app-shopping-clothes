@@ -32,30 +32,30 @@ export const es = {
     hero: {
       badge: "Nueva colección",
       title: "Moda con concepto, estilo y actitud.",
-      subtitle: "Explora outfits modernos, prendas con identidad visual y productos presentados desde diferentes ángulos para una experiencia más premium y tecnológica.",
+      subtitle: "Encuentra prendas cómodas y recuerdos bien hechos, inspirados en lugares de Ecuador y pensados para acompañarte todos los días.",
       shop: "Comprar colección",
       outfits: "Ver outfits",
-      statAngles: "Ángulos visuales",
-      statFit: "Outfits modernos",
+      statAngles: "Productos disponibles",
+      statFit: "Tallas y cortes",
       statLocal: "Concepto local",
-      sideLook: "Vista lateral",
-      autoAngle: "Ángulo automático",
+      sideLook: "Detalle de colección",
+      autoAngle: "Galería del producto",
       featured: "Producto destacado",
       viewProduct: "Ver producto",
-      conceptDrop: "Drop conceptual",
+      conceptDrop: "Detalle de temporada",
       goToProduct: "Ir al producto {{number}}",
     },
     categories: {
       eyebrow: "Explora la tienda",
-      title: "Categorías modernas",
-      text: "Secciones pensadas para mostrar prendas, colecciones, accesorios y conceptos visuales sin ocupar demasiado espacio.",
+      title: "Encuentra lo que buscas",
+      text: "Explora ropa para hombre y mujer, accesorios útiles y recuerdos inspirados en distintos paisajes del Ecuador.",
       collection: "Colección 0{{number}}",
       explore: "Explorar →",
     },
     season: {
       eyebrow: "Temporada",
-      title: "Colecciones listas para cambiar",
-      text: "Esta zona funciona como plantilla editorial para verano, invierno, viajes o lanzamientos especiales.",
+      title: "Elige según tu estilo",
+      text: "Prendas ligeras, básicos para el día a día y recuerdos que puedes usar o regalar.",
       cards: {
         summer: {
           eyebrow: "Drop cálido",
@@ -75,20 +75,20 @@ export const es = {
       },
     },
     outfits: {
-      eyebrow: "Outfit lab",
-      title: "Looks completos, no solo productos.",
-      text: "Muestra combinaciones reales de ropa para que el cliente visualice cómo se ve cada prenda dentro de un outfit moderno.",
+      eyebrow: "Ideas para combinar",
+      title: "Arma un look que puedas usar de verdad.",
+      text: "Combina camisetas, hoodies, pantalones y accesorios con prendas que ya tienes en casa.",
       cards: {
         street: {
-          title: "Street Essential",
+          title: "Urbano sencillo",
           text: "Camiseta gráfica, jean recto y chaqueta ligera para un look urbano.",
         },
         clean: {
-          title: "Clean Modern Fit",
+          title: "Neutros para diario",
           text: "Prendas neutras, minimalistas y combinables para cualquier ocasión.",
         },
         premium: {
-          title: "Premium Concept",
+          title: "Detalles con identidad",
           text: "Diseño inspirado en identidad, cultura y moda contemporánea.",
         },
       },
@@ -116,6 +116,10 @@ export const es = {
     hoodies: "Chompas / sudaderas",
     caps: "Gorras",
     art: "Arte e impresiones",
+    pants: "Pantalones",
+    bags: "Bolsos",
+    mugs: "Tazas",
+    embroidery: "Bordados",
   },
 
   concepts: {
@@ -176,6 +180,9 @@ export const es = {
     story: "La historia",
     add: "Añadir al carrito",
     concept: "Concepto",
+    soldOut: "Agotado",
+    addWishlist: "Añadir a favoritos",
+    removeWishlist: "Quitar de favoritos",
   },
 
   productDetail: {
@@ -187,6 +194,32 @@ export const es = {
     quantity: "Cantidad",
     save: "Guardar",
     saved: "Guardado",
+    selectSize: "Selecciona una talla antes de añadir el producto.",
+    inStock: "{{count}} unidades disponibles",
+    purchaseNote: "La disponibilidad se valida nuevamente al confirmar el pedido. La atención comercial continúa por WhatsApp.",
+    storyTitle: "Características y concepto",
+    usefulDetails: "Información útil",
+    fitTitle: "Tallas y formato",
+    singleFormat: "Formato único",
+    availabilityTitle: "Disponibilidad actual",
+    availabilityText: "Hay {{count}} unidades registradas. El stock se confirma al crear el pedido.",
+    supportTitle: "Compra acompañada",
+    supportText: "Si tienes dudas sobre talla, cuidado o entrega, puedes continuar la atención por WhatsApp.",
+    galleryViews: {
+      front: "Vista frontal",
+      back: "Vista posterior",
+      detail: "Detalle del producto",
+      full: "Vista completa",
+      additional: "Vista adicional",
+    },
+    context: {
+      galapagos: "La colección Galápagos evita la imagen turística obvia. Trabaja con formas pequeñas, colores fáciles de combinar y referencias a la costa volcánica para que la pieza tenga sentido dentro y fuera del viaje.",
+      quito: "La inspiración nace de caminar Quito: cambios de altura, tejados, torres y montañas que aparecen entre las calles. El resultado busca sentirse urbano y cotidiano, no como una postal impresa.",
+      otavalo: "Los patrones se utilizan como un acento y no como decoración excesiva. La intención es reconocer el ritmo visual de los textiles de Otavalo dentro de una pieza cómoda y fácil de incorporar al guardarropa.",
+      andes: "Los tonos tierra y las líneas de montaña recuerdan los trayectos por la cordillera. Son elementos discretos que combinan con prendas neutras y mantienen vigente el producto después del viaje.",
+      amazonia: "El verde y las formas orgánicas parten del paisaje del oriente ecuatoriano. La colección prioriza prendas prácticas y resistentes que puedan acompañar recorridos, días largos y uso frecuente.",
+      coast: "La línea Costa toma colores cálidos, luz suave y referencias al Pacífico ecuatoriano. Cada pieza está pensada para sentirse fresca, útil y sencilla de regalar o llevar en el equipaje.",
+    },
   },
 
   shop: {
@@ -196,6 +229,8 @@ export const es = {
       eyebrow: "Compra precisa",
       title: "Filtros",
       clear: "Limpiar",
+      search: "Buscar",
+      searchPlaceholder: "Nombre, estilo o concepto",
       category: "Categoría",
       price: "Precio",
       minPrice: "Precio mínimo",
@@ -212,12 +247,20 @@ export const es = {
       priceFrom: "Precio de",
       priceTo: "a",
     },
+    sort: {
+      featured: "Destacados",
+      priceAsc: "Menor precio",
+      priceDesc: "Mayor precio",
+      name: "Nombre A–Z",
+      stock: "Mayor disponibilidad",
+    },
     empty: {
       title: "No hay productos disponibles en esta selección",
       text: "Intenta cambiar los filtros",
     },
     subcategories: {
       camisetas: "Camisetas",
+      sudaderas: "Hoodies y sudaderas",
       gorras: "Gorras",
       bolsos: "Bolsos",
       pantalones: "Pantalones",
@@ -246,6 +289,8 @@ export const es = {
       basica: "Básica",
       grafica: "Gráfica",
       polo: "Polo",
+      afelpada: "Interior afelpado",
+      capucha: "Con capucha",
       snapback: "Snapback",
       trucker: "Trucker",
       dadCap: "Dad cap",
@@ -285,13 +330,18 @@ export const es = {
     empty: "Tu carrito está vacío.",
     total: "Total",
     checkout: "Pagar",
-    note: "Demo: el pago crea un pedido real en la API si iniciaste sesión.",
+    note: "Al confirmar, se registra el pedido y la atención comercial continúa por WhatsApp.",
+    decrease: "Disminuir una unidad",
+    increase: "Aumentar una unidad",
+    quantity: "{{count}} unidades",
+    removeLine: "Eliminar todo este producto del carrito",
   },
 
   auth: {
     title: "Bienvenido a Sprint",
     register: "Crear cuenta",
     login: "Iniciar sesión",
+    access: "Acceso",
     name: "Nombre",
     email: "Correo",
     password: "Contraseña",
@@ -405,6 +455,7 @@ export const es = {
         "Tu lista está vacía. Toca el corazón en los productos que te gusten.",
     ctaHelp: "Al comprar, convertimos lo guardado en un pedido.",
     buy: "Comprar lista",
+    viewAll: "Administrar favoritos",
   },
 
   about: {
@@ -416,7 +467,7 @@ export const es = {
   privacy: {
     title: "Política de privacidad",
     body:
-        "Este es un texto demo. En producción debes describir cómo se guardan los datos, cómo se gestionan las cuentas y cómo se manejan los pedidos, incluyendo términos del proveedor de pagos.",
+        "Sprint utiliza los datos de cuenta, contacto y entrega únicamente para gestionar el acceso, preparar pedidos, brindar soporte y mantener la trazabilidad de las operaciones. No almacenamos datos bancarios: la coordinación comercial continúa por el canal oficial de WhatsApp. El usuario puede solicitar la actualización de su información desde la configuración de la cuenta.",
   },
 
   adminProducts: {

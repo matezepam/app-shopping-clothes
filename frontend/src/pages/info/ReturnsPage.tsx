@@ -2,9 +2,16 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useStore } from "../../context/StoreContext";
 
+const returnStatusLabels: Record<string, string> = {
+  REQUESTED: "Solicitada",
+  APPROVED: "Aprobada",
+  REJECTED: "Rechazada",
+  RECEIVED: "Recibida",
+};
+
 export function ReturnsPage() {
   const { t } = useTranslation();
-  const { user, returns } = useStore();
+  const { user, returns, catalog } = useStore();
 
   if (!user) {
     return (
@@ -95,13 +102,21 @@ export function ReturnsPage() {
                   </p>
                 </div>
                 <span className="rounded-full bg-primary/20 px-3 py-1 text-xs font-bold text-neutral-950">
-                  {r.status}
+                  {returnStatusLabels[r.status] ?? r.status}
                 </span>
               </div>
               <p className="mt-4 text-sm text-neutral-600">
-                {t("returns.qty")}: {r.quantity} · {r.productId}
+                {t("returns.qty")}: {r.quantity} · {catalog.find((product) => product.id === r.productId)?.name ?? r.productId}
               </p>
               <p className="mt-2 text-sm text-neutral-500">{r.reason}</p>
+              {r.adminNote ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-800">
+                    Respuesta de Sprint
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-amber-950">{r.adminNote}</p>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

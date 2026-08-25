@@ -107,6 +107,8 @@ class OrderService(
     @Transactional
     fun create(jwt: Jwt, request: CheckoutRequest, idempotencyKey: String?): OrderResponse {
         val user = auth.currentUser(jwt)
+        require(idempotencyKey == null || idempotencyKey.length <= 120) { "La clave de idempotencia es demasiado extensa" }
+        require(idempotencyKey == null || idempotencyKey.matches(Regex("^[A-Za-z0-9._:-]{8,120}$"))) { "La clave de idempotencia no es válida" }
         idempotencyKey?.trim()?.takeIf { it.isNotBlank() }?.let { key ->
             orders.findByUserSubAndIdempotencyKey(jwt.subject, key)?.let { return it.dto() }
         }

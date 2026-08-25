@@ -1,92 +1,136 @@
-# Sprint — comercio electrónico integral
+# Sprint | Plataforma de comercio electrónico
 
-Aplicación web para catálogo, clientes, inventario, proveedores, solicitudes de compra, contacto comercial por WhatsApp, seguimiento, devoluciones, moderación y reportes. La identidad se gestiona exclusivamente con Amazon Cognito; PostgreSQL conserva perfiles y datos comerciales, pero nunca contraseñas.
+[![Integración continua](https://github.com/matezepam/app-shopping-clothes/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/matezepam/app-shopping-clothes/actions/workflows/ci.yml)
+[![Aplicación web](https://img.shields.io/badge/aplicación-sprint--clothes--ecuador.vercel.app-8f1d21)](https://sprint-clothes-ecuador.vercel.app)
+[![Licencia](https://img.shields.io/badge/licencia-MIT-1f2937)](LICENSE)
 
-## Arquitectura final
+Sprint es una plataforma web para administrar el ciclo comercial de una tienda de ropa: catálogo, inventario, pedidos, proveedores, moderación, devoluciones, usuarios y reportes. El proyecto separa la identidad, la lógica de negocio y la persistencia para mantener controles de acceso claros y operaciones trazables.
 
-- Frontend: React 19, TypeScript, Vite, Tailwind CSS e i18next.
-- Backend: Kotlin, Spring Boot 3, Spring Security OAuth2 Resource Server y JPA.
-- Identidad: Amazon Cognito (registro, confirmación, login, recuperación, renovación y grupos).
-- Datos: PostgreSQL 16 aislado en red privada y dividido físicamente en `sprint_identity` (perfiles Cognito) y `sprint_commerce` (operación y auditoría). Cada base tiene su conexión, migraciones Flyway y transacciones independientes.
-- Canal comercial: solicitud persistente y enlace oficial de WhatsApp; no se procesan tarjetas.
-- Despliegue: Nginx, frontend, backend, PostgreSQL y pgAdmin reproducibles con Docker Compose; los secretos se inyectan desde el entorno o el gestor del proveedor.
+## Entorno publicado
 
-## Inicio completo con Docker
+| Componente | Dirección | Estado esperado |
+| --- | --- | --- |
+| Aplicación web | [sprint-clothes-ecuador.vercel.app](https://sprint-clothes-ecuador.vercel.app) | Interfaz pública y paneles por rol |
+| API | [d2q9niwakr7mc.cloudfront.net](https://d2q9niwakr7mc.cloudfront.net/actuator/health) | Respuesta de salud `UP` |
 
-Con Docker Desktop iniciado:
+El frontend se publica en Vercel y consume la API alojada en AWS. PostgreSQL y los servicios internos no se exponen directamente a Internet.
+
+## Funciones principales
+
+- Catálogo con categorías, variantes, existencias y galería de imágenes.
+- Registro, confirmación e inicio de sesión mediante Amazon Cognito.
+- Carrito, solicitud de compra, reserva de inventario y contacto por WhatsApp.
+- Seguimiento de pedidos con historial de estados.
+- Solicitudes de devolución y reintegro controlado de existencias.
+- Creación y edición de productos con carga validada de imágenes.
+- Moderación de publicaciones con decisión, motivo, responsable y fecha.
+- Gestión de proveedores, inventario, usuarios y reportes administrativos.
+- Auditoría de operaciones con actor, rol, ruta, resultado y código HTTP.
+
+## Roles de acceso
+
+| Rol | Responsabilidades principales |
+| --- | --- |
+| Cliente (`USER`) | Consultar el catálogo, administrar favoritos y carrito, realizar solicitudes, consultar pedidos y solicitar devoluciones. |
+| Vendedor (`VENDOR`) | Registrar productos, administrar existencias, revisar pedidos y gestionar proveedores. |
+| Moderador (`MODERATOR`) | Revisar productos pendientes, aprobarlos, observarlos o rechazarlos y dejar constancia de la decisión. |
+| Administrador (`ADMIN`) | Supervisar usuarios, catálogo, inventario, pedidos, devoluciones, reportes y auditoría. |
+
+Los permisos se validan en el backend. La interfaz oculta acciones no autorizadas, pero no sustituye el control de acceso del servidor.
+
+## Arquitectura
+
+```mermaid
+flowchart LR
+    U[Cliente o trabajador] --> F[React + TypeScript]
+    F -->|HTTPS / JWT| A[Spring Boot API]
+    A --> C[Amazon Cognito]
+    A --> I[(sprint_identity)]
+    A --> O[(sprint_commerce)]
+    A --> M[WhatsApp]
+    F -. despliegue .-> V[Vercel]
+    A -. despliegue .-> W[AWS / CloudFront]
+```
+
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS e i18next.
+- **Backend:** Kotlin, Spring Boot 3, Spring Security, OAuth2 Resource Server y JPA.
+- **Identidad:** Amazon Cognito para registro, confirmación, tokens y grupos.
+- **Datos:** PostgreSQL 16 con bases separadas para identidad y operación comercial.
+- **Infraestructura:** Docker Compose para desarrollo; Vercel y AWS para publicación.
+
+## Estructura del repositorio
+
+```text
+app-shopping-clothes/
+|-- .github/             Integración continua y actualizaciones controladas
+|-- backend/             API, seguridad, reglas de negocio y migraciones Flyway
+|-- frontend/            Aplicación React y recursos del catálogo
+|-- infra/               Plantillas de AWS, PostgreSQL y pgAdmin
+|-- runtime/             Archivos generados durante la ejecución local
+|-- scripts/             Inicio, pruebas, respaldo y restauración
+|-- compose.yaml         Servicios del entorno local
+|-- .env.example         Plantilla de configuración sin secretos
+`-- README.md            Documentación principal
+```
+
+Las capturas, diagramas, respaldos históricos y documentos académicos se conservan fuera del repositorio.
+
+## Ejecución local
+
+### Requisitos
+
+- Docker Desktop con Docker Compose.
+- PowerShell 7 o Windows PowerShell.
+- Puertos `8088` y `5050` disponibles.
+
+### Inicio completo
+
+1. Copiar `.env.example` como `.env` y completar únicamente las variables locales requeridas.
+2. Iniciar la plataforma:
 
 ```powershell
 .\scripts\docker-up.ps1 -OpenBrowser
 ```
 
-La plataforma completa queda en `http://localhost:8088`; Nginx sirve React y dirige `/api/*` al backend. El script importa automáticamente los datos de `backend/.env.cognito.generated` cuando existen. Para verificar la instalación:
+3. Verificar los servicios:
 
 ```powershell
 .\scripts\smoke-test.ps1
 ```
 
-pgAdmin queda disponible en `http://localhost:5050` con el servidor **Sprint - PostgreSQL 16** registrado automáticamente. Si solicita la contraseña local usa `SprintLocal#2026`. La relación entre ambas bases se mantiene mediante `identity_user_id` y `user_sub`; PostgreSQL no admite claves foráneas entre bases físicas diferentes.
-
-Para detener sin borrar PostgreSQL:
+La tienda queda disponible en `http://localhost:8088` y pgAdmin en `http://localhost:5050`. Para detener los contenedores sin eliminar los datos:
 
 ```powershell
 .\scripts\docker-down.ps1
 ```
 
-## Funciones implementadas
+## Configuración
 
-- Registro, confirmación, reenvío de código, inicio de sesión, recuperación y cambio de contraseña con Cognito.
-- Validación de emisor, App Client, expiración y `token_use=access` mediante JWKS de Cognito.
-- Respuestas 401 para token ausente/inválido y 403 para grupo insuficiente.
-- Perfiles asociados al `sub` de Cognito y preferencias de idioma.
-- Aprovisionamiento automático del perfil local al recibir por primera vez un token válido de Cognito.
-- CRUD de productos, categorías y proveedores.
-- Historial persistente de moderación y de cambios de estado de pedidos para auditoría y trazabilidad.
-- Registro automático e inmutable de actividades API con actor Cognito, roles, ruta, resultado, código HTTP, identificador de solicitud y duración; no almacena tokens ni cuerpos sensibles.
-- Grupos `ADMIN`, `VENDOR`, `MODERATOR` y `USER` aplicados en backend.
-- Movimientos trazables de inventario con bloqueo pesimista y saldo no negativo.
-- Solicitudes idempotentes; precio calculado en servidor, reserva transaccional de stock y liberación al cancelar.
-- Resumen y enlace de WhatsApp generados desde la solicitud persistida.
-- Seguimiento con transiciones de estado controladas.
-- Devoluciones con validación de cantidades y reintegro de stock al recibirlas.
-- Moderación con decisión, motivo, responsable y fecha.
-- Reportes de pedidos, ingresos, unidades, devoluciones, stock bajo, productos y ventas por día.
-- Frontend sin datos simulados como sustituto del backend.
-
-## Variables de producción
-
-Copiar únicamente los nombres de `backend/.env.example` al gestor de secretos del proveedor. No subir un `.env` real.
+Los secretos se almacenan en el entorno de ejecución y nunca en Git. Las variables principales son:
 
 ```text
 IDENTITY_DATASOURCE_URL=jdbc:postgresql://.../sprint_identity?sslmode=require
 COMMERCE_DATASOURCE_URL=jdbc:postgresql://.../sprint_commerce?sslmode=require
 DATABASE_USERNAME=...
 DATABASE_PASSWORD=...
-APP_CORS_ALLOWED_ORIGINS=https://store.example.com
+APP_CORS_ALLOWED_ORIGINS=https://sprint-clothes-ecuador.vercel.app
 APP_WHATSAPP_BUSINESS_NUMBER=593939051525
 AWS_COGNITO_REGION=us-east-1
-AWS_COGNITO_USER_POOL_ID=us-east-1_xxx
+AWS_COGNITO_USER_POOL_ID=...
 AWS_COGNITO_CLIENT_ID=...
 AWS_COGNITO_CLIENT_SECRET=...
+VITE_API_URL=https://d2q9niwakr7mc.cloudfront.net
 ```
 
-El frontend requiere:
+Amazon Cognito asigna `USER` a los registros públicos. Los grupos administrativos se gestionan fuera del formulario de registro para evitar elevación de privilegios.
 
-```text
-VITE_API_URL=https://api.example.com
-```
-
-## Configuración de Cognito desplegada
-
-La pila `sprint-cognito` de `infra/aws/cognito.yml` crea el User Pool con correo verificado, política fuerte, App Client, grupos `USER`, `ADMIN`, `VENDOR`, `MODERATOR` y una función posterior a la confirmación que asigna solamente `USER` a cuentas públicas. La aplicación nunca acepta el rol durante el registro ni permite autoelevación.
-
-## Construcción y pruebas
+## Pruebas y control de calidad
 
 Backend:
 
 ```powershell
 cd backend
-.\gradlew.bat clean test build --no-daemon
+.\gradlew.bat clean test bootJar --no-daemon
 ```
 
 Frontend:
@@ -94,23 +138,37 @@ Frontend:
 ```powershell
 cd frontend
 npm ci
+npm audit --audit-level=high
 npm run build
 ```
 
-Auditoría de dependencias:
+Contenedores:
 
 ```powershell
-cd frontend
-npm audit --audit-level=high
+docker compose config --quiet
+docker build --target runtime -t sprint-backend ./backend
+docker build --target runtime -t sprint-frontend ./frontend
 ```
 
-Las pruebas automatizadas verifican el arranque, 401 sin token, 403 con grupo insuficiente, acceso administrativo, reserva de inventario, rechazo por stock e idempotencia. Las pruebas reales de correos, SMS y tokens requieren un User Pool de Cognito configurado.
+GitHub Actions repite estas verificaciones en cada pull request. La rama `main` exige que backend, frontend y contenedores finalicen correctamente antes de integrar cambios.
 
-## Despliegue
+## Persistencia y seguridad
 
-- Frontend productivo: `https://sprint-clothes-ecuador.vercel.app`.
-- Backend productivo: `https://d2q9niwakr7mc.cloudfront.net` (`/actuator/health`).
-- AWS: CloudFront HTTPS, EC2 sin SSH público, ECR con escaneo, Secrets Manager, Systems Manager y EBS cifrado persistente.
-- CORS permite exclusivamente el dominio definitivo de Vercel.
-- El entorno local usa `compose.yaml`: PostgreSQL no publica puerto, el backend solo es accesible por la red interna y Nginx es el único punto de entrada.
-- La canalización `.github/workflows/ci.yml` repite pruebas, auditoría, build y construcción de contenedores en cada cambio.
+- Las contraseñas pertenecen exclusivamente a Cognito; PostgreSQL no las almacena.
+- Los tokens se validan por emisor, audiencia, expiración y tipo.
+- Las respuestas `401` y `403` diferencian autenticación y autorización.
+- Los movimientos de inventario conservan trazabilidad y evitan saldos negativos.
+- Las solicitudes de compra utilizan claves de idempotencia.
+- Las imágenes se validan por tipo, firma, tamaño y cantidad antes de guardarse.
+- Nginx y Vercel aplican encabezados de seguridad; CORS limita los orígenes permitidos.
+- Los respaldos se generan y verifican mediante los scripts incluidos.
+
+## Publicación
+
+El proyecto de Vercel debe usar `frontend` como directorio raíz, `npm run build` como comando de construcción y `dist` como directorio de salida. `frontend/vercel.json` mantiene las rutas internas de la SPA y aplica encabezados de seguridad.
+
+La integración entre GitHub y Vercel genera una vista previa por pull request. Al integrar un cambio aprobado en `main`, Vercel publica automáticamente la nueva versión del frontend. El backend se despliega de forma independiente en AWS para conservar la base de datos y los archivos persistentes.
+
+## Licencia
+
+Este proyecto se distribuye bajo la licencia MIT incluida en [LICENSE](LICENSE).

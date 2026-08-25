@@ -281,8 +281,9 @@ export function CartPage() {
                             onClick={() =>
                               setQuantity(line.productId, line.quantity - 1)
                             }
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground transition hover:bg-secondary hover:text-white"
-                            aria-label="Disminuir cantidad"
+                            disabled={line.quantity <= 1}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground transition hover:bg-secondary hover:text-white disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-muted disabled:hover:text-foreground"
+                            aria-label="Disminuir una unidad"
                           >
                             <Minus size={16} />
                           </button>
@@ -296,12 +297,17 @@ export function CartPage() {
                             onClick={() =>
                               setQuantity(line.productId, line.quantity + 1)
                             }
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground transition hover:bg-secondary hover:text-white"
+                            disabled={line.quantity >= (line.product.stock ?? 0)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground transition hover:bg-secondary hover:text-white disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-muted disabled:hover:text-foreground"
                             aria-label="Aumentar cantidad"
                           >
                             <Plus size={16} />
                           </button>
                         </div>
+
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Ajusta unidades con − y +. La papelera elimina toda la línea.
+                        </p>
 
                         <p className="rounded-full bg-secondary/10 px-4 py-2 text-sm font-bold text-secondary">
                           {formatMoney(

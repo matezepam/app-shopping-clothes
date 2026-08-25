@@ -8,6 +8,7 @@ import com.sprint.backend.auth.dto.RegisterRequest
 import com.sprint.backend.auth.dto.RegistrationResponse
 import com.sprint.backend.auth.dto.UpdateProfileRequest
 import com.sprint.backend.config.ForbiddenException
+import com.sprint.backend.config.ImageFileValidator
 import com.sprint.backend.users.User
 import com.sprint.backend.users.UserRepository
 import org.springframework.security.oauth2.jwt.Jwt
@@ -96,11 +97,10 @@ class AuthService(
     @Transactional("identityTransactionManager")
     fun updateAvatar(jwt: Jwt, file: MultipartFile): AuthUserResponse {
         require(!file.isEmpty) { "La imagen es requerida" }
-        val contentType = file.contentType ?: ""
-        require(contentType in setOf("image/jpeg", "image/png", "image/webp")) { "Formato de imagen no permitido" }
         require(file.size <= 2 * 1024 * 1024) { "La imagen no debe superar 2 MB" }
+        val image = ImageFileValidator.validate(file.bytes)
         val user = currentUser(jwt)
-        user.avatarUrl = "data:$contentType;base64,${Base64.getEncoder().encodeToString(file.bytes)}"
+        user.avatarUrl = "data:${image.mediaType};base64,${Base64.getEncoder().encodeToString(image.bytes)}"
         return toUserResponse(userRepository.save(user), groups(jwt))
     }
 

@@ -5,9 +5,18 @@ import { useStore } from "../../context/StoreContext";
 import { formatMoney, fromUsd } from "../../lib/currency";
 import type { Order } from "../../types/store";
 
+const orderStatusLabels: Record<string, string> = {
+  PENDING_WHATSAPP: "Pendiente de confirmación por WhatsApp",
+  CONFIRMED: "Confirmado",
+  PREPARING: "En preparación",
+  SHIPPED: "Enviado",
+  DELIVERED: "Entregado",
+  CANCELLED: "Cancelado",
+};
+
 export function HistoryPage() {
   const { t, i18n } = useTranslation();
-  const { user, orders, currency, requestReturn } = useStore();
+  const { user, orders, returns, currency, requestReturn } = useStore();
   const [modal, setModal] = useState<{
     order: Order;
     productId: string;
@@ -127,7 +136,7 @@ export function HistoryPage() {
                 </span>
               </div>
               <p className="mt-3 text-sm font-bold text-primary">
-                {t("history.status")}: {o.status}
+                {t("history.status")}: {orderStatusLabels[o.status] ?? o.status}
               </p>
               <p className="mt-1 text-lg font-semibold text-neutral-950">
                 {t("history.total")}:{" "}
@@ -137,22 +146,26 @@ export function HistoryPage() {
                 <a href={o.whatsappUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Continuar por WhatsApp</a>
               ) : null}
               <ul className="mt-4 space-y-2 border-t border-neutral-100 pt-4">
-                {o.items.map((i) => (
-                  <li
+                {o.items.map((i) => {
+                  const alreadyRequested = returns
+                    .filter((request) => request.orderId === o.id && request.productId === i.productId && request.status !== "REJECTED")
+                    .reduce((total, request) => total + request.quantity, 0);
+                  const availableToReturn = Math.max(0, i.quantity - alreadyRequested);
+                  return <li
                     key={`${o.id}-${i.productId}`}
                     className="flex flex-wrap items-center justify-between gap-2 text-sm"
                   >
                     <span className="font-semibold text-neutral-700">
                       {i.name} × {i.quantity}
                     </span>
-                    {o.status === "DELIVERED" ? <button
+                    {o.status === "DELIVERED" && availableToReturn > 0 ? <button
                       type="button"
                       className="rounded-full border border-neutral-200 px-3 py-1 text-xs font-bold text-neutral-700 transition hover:bg-neutral-100"
                       onClick={() => {
                         setModal({
                           order: o,
                           productId: i.productId,
-                          maxQty: i.quantity,
+                          maxQty: availableToReturn,
                         });
                         setQty(1);
                         setReason("");
@@ -160,9 +173,9 @@ export function HistoryPage() {
                       }}
                     >
                       {t("history.returnCta")}
-                    </button> : null}
-                  </li>
-                ))}
+                    </button> : o.status === "DELIVERED" && alreadyRequested > 0 ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Devolución registrada</span> : null}
+                  </li>;
+                })}
               </ul>
             </li>
           ))}

@@ -1,6 +1,8 @@
 package com.sprint.backend
 
 import com.sprint.backend.audit.ActivityLogRepository
+import com.sprint.backend.users.User
+import com.sprint.backend.users.UserRepository
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -11,12 +13,15 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.options
 import org.springframework.test.web.servlet.post
+import org.springframework.test.web.servlet.multipart
+import org.springframework.mock.web.MockMultipartFile
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class SecurityIntegrationTests(
     @Autowired private val mockMvc: MockMvc,
-    @Autowired private val activityLogs: ActivityLogRepository
+    @Autowired private val activityLogs: ActivityLogRepository,
+    @Autowired private val users: UserRepository
 ) {
     @Test
     fun `configured frontend origin passes CORS preflight`() {
@@ -103,8 +108,32 @@ class SecurityIntegrationTests(
             content = "{not-json}"
         }.andExpect {
             status { isBadRequest() }
+            header { string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")) }
             jsonPath("$.code") { value("MALFORMED_REQUEST") }
             jsonPath("$.requestId") { isNotEmpty() }
+        }
+    }
+
+    @Test
+    fun `disabled account is rejected even while token remains valid`() {
+        users.save(User(firstName = "Cuenta", lastName = "Bloqueada", email = "disabled@test.local", cognitoSub = "disabled-sub", enabled = false))
+        mockMvc.get("/api/admin/stats") {
+            with(jwt().authorities(SimpleGrantedAuthority("ROLE_ADMIN")).jwt { it.subject("disabled-sub") })
+        }.andExpect {
+            status { isForbidden() }
+            jsonPath("$.code") { value("ACCOUNT_DISABLED") }
+        }
+    }
+
+    @Test
+    fun `image upload rejects a file that only claims to be an image`() {
+        val fake = MockMultipartFile("images", "fake.jpg", "image/jpeg", "not an image".toByteArray())
+        mockMvc.multipart("/api/products/admin/images") {
+            file(fake)
+            with(jwt().authorities(SimpleGrantedAuthority("ROLE_VENDOR")).jwt { it.subject("vendor-sub") })
+        }.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.code") { value("BAD_REQUEST") }
         }
     }
 

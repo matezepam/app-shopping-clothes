@@ -76,6 +76,10 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${tone}`}>{statusLabels[status] ?? status}</span>;
 }
 
+type NoteAction =
+  | { kind: "moderation"; id: string; status: "OBSERVED" | "REJECTED" }
+  | { kind: "return"; id: string; status: "APPROVED" | "REJECTED" | "RECEIVED" };
+
 export function OperationsPage() {
   const { token, user, catalog, refreshProducts } = useStore();
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -92,6 +96,8 @@ export function OperationsPage() {
   const [categoryName, setCategoryName] = useState("");
   const [supplier, setSupplier] = useState({ name: "", taxId: "", email: "", phone: "" });
   const [movement, setMovement] = useState({ productId: "", type: "ENTRY", quantity: 1, reference: "" });
+  const [noteAction, setNoteAction] = useState<NoteAction | null>(null);
+  const [noteText, setNoteText] = useState("");
   const isAdmin = user?.roles.includes("ADMIN") ?? false;
   const isVendor = user?.roles.includes("VENDOR") ?? false;
   const isModerator = user?.roles.includes("MODERATOR") ?? false;
@@ -159,14 +165,31 @@ export function OperationsPage() {
   const changeOrder = (id: string, status: string) => token && runAction(`order-${id}`, async () => { await api.adminOrderPatch(token, id, status); await load(); });
   const moderate = (productId: string, decision: string) => {
     if (!token) return;
-    const note = decision === "APPROVED" ? undefined : window.prompt("Escribe el motivo de la decisión")?.trim();
-    if (decision !== "APPROVED" && !note) return;
-    void runAction(`moderation-${productId}`, async () => { await api.moderate(token, productId, decision, note); await refreshProducts(); await load(); });
+    if (decision !== "APPROVED") {
+      setNoteText("");
+      setNoteAction({ kind: "moderation", id: productId, status: decision as "OBSERVED" | "REJECTED" });
+      return;
+    }
+    void runAction(`moderation-${productId}`, async () => { await api.moderate(token, productId, decision); await refreshProducts(); await load(); });
   };
   const changeReturn = (id: string, status: string) => {
     if (!token) return;
-    const note = window.prompt("Nota administrativa (opcional)")?.trim();
-    void runAction(`return-${id}`, async () => { await api.adminReturnPatch(token, id, { status, adminNote: note }); await load(); });
+    setNoteText("");
+    setNoteAction({ kind: "return", id, status: status as "APPROVED" | "REJECTED" | "RECEIVED" });
+  };
+  const confirmNoteAction = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!token || !noteAction) return;
+    const note = noteText.trim();
+    if (noteAction.kind === "moderation" && !note) return;
+    const action = noteAction;
+    setNoteAction(null);
+    setNoteText("");
+    if (action.kind === "moderation") {
+      await runAction(`moderation-${action.id}`, async () => { await api.moderate(token, action.id, action.status, note); await refreshProducts(); await load(); });
+      return;
+    }
+    await runAction(`return-${action.id}`, async () => { await api.adminReturnPatch(token, action.id, { status: action.status, adminNote: note || undefined }); await load(); });
   };
   const toggleCustomer = (id: number, enabled: boolean) => token && runAction(`customer-${id}`, async () => { await api.customerStatus(token, id, enabled); await load(); });
 
@@ -236,7 +259,7 @@ export function OperationsPage() {
 
       <section className="grid gap-6 xl:grid-cols-2">
         {canCommerce ? <Panel title="Devoluciones" subtitle="Revisión y recepción con restitución de stock" icon={<RotateCcw size={20} />}>
-          <div className="space-y-3">{returns.length ? returns.map((item) => <article key={item.id} className="rounded-2xl bg-neutral-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-black">{item.userEmail}</p><p className="mt-1 text-sm text-muted-foreground">{item.quantity} × {item.productId} · {item.reason}</p></div><StatusBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-2">{item.status === "REQUESTED" ? <><button disabled={busyAction === `return-${item.id}`} onClick={() => changeReturn(item.id,"APPROVED")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white">Aprobar</button><button disabled={busyAction === `return-${item.id}`} onClick={() => changeReturn(item.id,"REJECTED")} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white">Rechazar</button></> : null}{item.status === "APPROVED" ? <button disabled={busyAction === `return-${item.id}`} onClick={() => changeReturn(item.id,"RECEIVED")} className="rounded-lg bg-accent px-3 py-2 text-xs font-black text-white">Marcar recibida</button> : null}</div></article>) : <EmptyState>No hay devoluciones pendientes.</EmptyState>}</div>
+          <div className="space-y-3">{returns.length ? returns.map((item) => <article key={item.id} className="rounded-2xl bg-neutral-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-black">{item.userEmail}</p><p className="mt-1 text-sm text-muted-foreground">{item.quantity} × {catalog.find((product) => product.id === item.productId)?.name ?? item.productId} · {item.reason}</p>{item.adminNote ? <p className="mt-3 rounded-xl bg-white px-3 py-2 text-sm text-neutral-700"><b>Nota enviada al cliente:</b> {item.adminNote}</p> : null}</div><StatusBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-2">{item.status === "REQUESTED" ? <><button disabled={busyAction === `return-${item.id}`} onClick={() => changeReturn(item.id,"APPROVED")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white">Aprobar</button><button disabled={busyAction === `return-${item.id}`} onClick={() => changeReturn(item.id,"REJECTED")} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white">Rechazar</button></> : null}{item.status === "APPROVED" ? <button disabled={busyAction === `return-${item.id}`} onClick={() => changeReturn(item.id,"RECEIVED")} className="rounded-lg bg-accent px-3 py-2 text-xs font-black text-white">Marcar recibida</button> : null}</div></article>) : <EmptyState>No hay devoluciones pendientes.</EmptyState>}</div>
         </Panel> : null}
 
         {isAdmin ? <Panel title="Clientes" subtitle={`${customers.length} perfiles`} icon={<Users size={20} />}>
@@ -253,6 +276,25 @@ export function OperationsPage() {
           <ul className="space-y-2">{movements.length ? movements.slice(0,10).map((item) => <li key={item.id} className="flex items-center justify-between gap-4 rounded-2xl bg-neutral-50 px-4 py-3 text-sm"><span className="min-w-0 truncate"><b>{item.type}</b> · {item.productName}</span><span className="shrink-0 font-black">{item.quantity} → {item.resultingStock}</span></li>) : <EmptyState>Aún no hay movimientos registrados.</EmptyState>}</ul>
         </Panel> : null}
       </section>
+
+      {noteAction ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setNoteAction(null); }}>
+        <form role="dialog" aria-modal="true" aria-labelledby="operation-note-title" onSubmit={(event) => void confirmNoteAction(event)} className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl md:p-8">
+          <h2 id="operation-note-title" className="font-display text-2xl font-black">
+            {noteAction.kind === "moderation"
+              ? noteAction.status === "OBSERVED" ? "Registrar observación" : "Motivo del rechazo"
+              : noteAction.status === "APPROVED" ? "Aprobar devolución" : noteAction.status === "REJECTED" ? "Rechazar devolución" : "Confirmar recepción"}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {noteAction.kind === "moderation" ? "Esta explicación será visible para el vendedor." : "La respuesta quedará visible para el cliente en su solicitud."}
+          </p>
+          <label htmlFor="operation-note" className="mt-5 block text-sm font-black">{noteAction.kind === "moderation" ? "Comentario obligatorio" : "Respuesta para el cliente"}</label>
+          <textarea id="operation-note" autoFocus required={noteAction.kind === "moderation"} maxLength={500} rows={5} value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder={noteAction.kind === "moderation" ? "Describe claramente qué debe corregirse." : "Escribe una indicación breve y clara."} className="field-control mt-2 resize-none" />
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" onClick={() => { setNoteAction(null); setNoteText(""); }} className="rounded-full border border-black/10 px-5 py-2.5 text-sm font-black">Cancelar</button>
+            <button type="submit" disabled={noteAction.kind === "moderation" && !noteText.trim()} className="rounded-full bg-neutral-950 px-5 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">Confirmar</button>
+          </div>
+        </form>
+      </div> : null}
     </div>
   );
 }

@@ -27,6 +27,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthoriz
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ResendConfirmationCodeRequest
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest
 import software.amazon.awssdk.services.cognitoidentityprovider.model.UsernameExistsException
+import software.amazon.awssdk.services.cognitoidentityprovider.model.UserNotFoundException
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import javax.crypto.Mac
@@ -84,11 +85,15 @@ class CognitoAuthService(
 
     fun resend(emailValue: String): String? {
         val email = emailValue.trim().lowercase()
-        val response = cognito.resendConfirmationCode(
-            ResendConfirmationCodeRequest.builder().clientId(clientId).username(email)
-                .secretHash(secretHash(email)).build()
-        )
-        return response.codeDeliveryDetails().description()
+        return try {
+            val response = cognito.resendConfirmationCode(
+                ResendConfirmationCodeRequest.builder().clientId(clientId).username(email)
+                    .secretHash(secretHash(email)).build()
+            )
+            response.codeDeliveryDetails().description()
+        } catch (_: UserNotFoundException) {
+            null
+        }
     }
 
     fun login(request: LoginRequest): AuthResponse {
@@ -103,19 +108,14 @@ class CognitoAuthService(
             return AuthResponse(
                 token = result.accessToken(),
                 refreshToken = result.refreshToken(),
-                expiresIn = result.expiresIn(),
-                idToken = result.idToken()
+                expiresIn = result.expiresIn()
             )
         } catch (_: NotAuthorizedException) {
             throw UnauthorizedException("Credenciales inválidas o cuenta sin confirmar")
         }
     }
 
-    /**
-     * Reads the verified identity directly from Cognito. This lets users created
-     * by an administrator (for example the demo role accounts) obtain their
-     * local commercial profile on first login without storing a password here.
-     */
+    /** Obtiene la identidad verificada y crea el perfil comercial sin guardar contraseñas. */
     fun identity(accessToken: String): CognitoIdentity {
         val response = cognito.getUser(GetUserRequest.builder().accessToken(accessToken).build())
         val attributes = response.userAttributes().associate { it.name() to it.value() }
@@ -136,16 +136,20 @@ class CognitoAuthService(
             InitiateAuthRequest.builder().clientId(clientId).authFlow(AuthFlowType.REFRESH_TOKEN_AUTH)
                 .authParameters(parameters).build()
         ).authenticationResult() ?: throw UnauthorizedException("No se pudo renovar la sesión")
-        return AuthResponse(token = result.accessToken(), refreshToken = refreshToken, idToken = result.idToken(), expiresIn = result.expiresIn())
+        return AuthResponse(token = result.accessToken(), refreshToken = refreshToken, expiresIn = result.expiresIn())
     }
 
     fun forgotPassword(emailValue: String): String? {
         val email = emailValue.trim().lowercase()
-        val response = cognito.forgotPassword(
-            ForgotPasswordRequest.builder().clientId(clientId).username(email)
-                .secretHash(secretHash(email)).build()
-        )
-        return response.codeDeliveryDetails().description()
+        return try {
+            val response = cognito.forgotPassword(
+                ForgotPasswordRequest.builder().clientId(clientId).username(email)
+                    .secretHash(secretHash(email)).build()
+            )
+            response.codeDeliveryDetails().description()
+        } catch (_: UserNotFoundException) {
+            null
+        }
     }
 
     fun resetPassword(request: ResetPasswordRequest) {

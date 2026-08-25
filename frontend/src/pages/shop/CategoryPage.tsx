@@ -1,17 +1,18 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { ProductCard } from "../../components/product/ProductCard";
 import { useStore } from "../../context/StoreContext";
 import type { ProductColor, ProductSubcategory } from "../../types/store";
 
-type FilterSubcategory = ProductSubcategory | "pantalones";
+type FilterSubcategory = Exclude<ProductSubcategory, "recuadros" | "tazas" | "bordados">;
 type SouvenirFilter = "recuadros" | "tazas" | "bordados";
 type FilterCategory = FilterSubcategory | SouvenirFilter;
 
 const SUBCATEGORIES: FilterSubcategory[] = [
   "camisetas",
+  "sudaderas",
   "gorras",
   "bolsos",
   "pantalones",
@@ -27,6 +28,7 @@ const SOUVENIR_CATEGORIES: SouvenirFilter[] = [
 
 const FILTER_DETAILS: Record<FilterSubcategory, string[]> = {
   camisetas: ["oversize", "basica", "grafica", "polo"],
+  sudaderas: ["oversize", "afelpada", "capucha", "basica"],
   gorras: ["snapback", "trucker", "dadCap", "bordada"],
   bolsos: ["tote", "mochila", "crossbody", "mini"],
   pantalones: ["baggy", "slim", "cargo", "recto"],
@@ -46,7 +48,7 @@ const SOUVENIR_CATEGORY_MATCH: Record<SouvenirFilter, string[]> = {
   bordados: ["bordado", "embroidered", "parche", "textil", "woven"],
 };
 
-const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "Oversize"];
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "26", "28", "30", "32", "34", "36", "38", "Única"];
 
 const COLORS: { label: string; value: ProductColor; hex: string }[] = [
   { label: "Negro", value: "negro", hex: "#000000" },
@@ -60,6 +62,12 @@ const COLORS: { label: string; value: ProductColor; hex: string }[] = [
   { label: "Plateado", value: "plateado", hex: "#E5E7EB" },
   { label: "Rosa", value: "rosa", hex: "#EC4899" },
 ];
+
+const normalizeText = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 const getProductPrice = (product: unknown) => {
   const item = product as Record<string, unknown>;
@@ -75,25 +83,26 @@ const getProductPrice = (product: unknown) => {
 const getProductSizes = (product: unknown) => {
   const item = product as Record<string, unknown>;
   return Array.isArray(item.sizes)
-    ? item.sizes.map((size) => String(size).toLowerCase())
+      ? item.sizes.map((size) => normalizeText(size))
     : [];
 };
 
 const getSearchText = (product: unknown) => {
   const item = product as Record<string, unknown>;
 
-  return [
-    item.name,
-    item.description,
-    item.story,
-    item.category,
-    item.subcategory,
-    item.concept,
-    item.color,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  return normalizeText(
+    [
+      item.name,
+      item.description,
+      item.story,
+      item.category,
+      item.subcategory,
+      item.concept,
+      item.color,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 };
 
 export function CategoryPage() {
@@ -110,14 +119,15 @@ export function CategoryPage() {
   const [selectedDetails, setSelectedDetails] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [priceQuery, setPriceQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [sortBy, setSortBy] = useState("featured");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const hoverCloseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const routeCategory = category ?? "men";
   const isSouvenirs = routeCategory === "souvenirs";
-  const filterCategories: FilterCategory[] = isSouvenirs
-    ? SOUVENIR_CATEGORIES
-    : SUBCATEGORIES;
 
   const routeCatalog = useMemo(() => {
     return catalog.filter((product) => {
@@ -136,14 +146,47 @@ export function CategoryPage() {
     });
   }, [catalog, routeCategory]);
 
-  const quickPrices = useMemo(() => {
-    return Array.from(
-      new Set(routeCatalog.map((product) => Math.round(getProductPrice(product)))),
-    )
-      .filter((price) => price > 0)
-      .sort((a, b) => a - b)
-      .slice(0, 6);
+  const filterCategories = useMemo<FilterCategory[]>(() => {
+    const candidates: FilterCategory[] = isSouvenirs
+      ? SOUVENIR_CATEGORIES
+      : SUBCATEGORIES;
+
+    return candidates.filter((subcategory) =>
+      routeCatalog.some((product) => {
+        if (subcategory in SOUVENIR_CATEGORY_MATCH) {
+          const text = getSearchText(product);
+          return SOUVENIR_CATEGORY_MATCH[subcategory as SouvenirFilter].some(
+            (keyword) => text.includes(keyword),
+          );
+        }
+        return product.subcategory === subcategory;
+      }),
+    );
+  }, [isSouvenirs, routeCatalog]);
+
+  const availableSizes = useMemo(() => {
+    const values = new Set(routeCatalog.flatMap((product) => product.sizes ?? []));
+    return SIZES.filter((size) => values.has(size));
   }, [routeCatalog]);
+
+  const availableColors = useMemo(() => {
+    const values = new Set(routeCatalog.map((product) => product.color));
+    return COLORS.filter((color) => values.has(color.value));
+  }, [routeCatalog]);
+
+  useEffect(() => {
+    setSelectedSubcategories([]);
+    setSelectedDetails([]);
+    setSelectedColor(null);
+    setSelectedSize(null);
+    setSearchQuery("");
+    setMinPrice("");
+    setMaxPrice("");
+    setSortBy("featured");
+    setExpanded(null);
+    setHovered(null);
+    setFiltersOpen(false);
+  }, [routeCategory]);
 
   const filtered = useMemo(() => {
     return routeCatalog.filter((product) => {
@@ -165,30 +208,34 @@ export function CategoryPage() {
         !isSouvenirs && selectedColor ? product.color === selectedColor : true;
       const productSizes = getProductSizes(product);
       const matchesSize = !isSouvenirs && selectedSize
-        ? productSizes.length === 0 ||
-          productSizes.includes(selectedSize.toLowerCase())
+        ? productSizes.includes(normalizeText(selectedSize))
         : true;
 
       const productPrice = getProductPrice(product);
-      const searchedPrice = Number(priceQuery);
+      const minimum = Number(minPrice);
+      const maximum = Number(maxPrice);
       const matchesPrice =
-        priceQuery.trim() === "" ||
-        (Number.isFinite(searchedPrice) &&
-          Math.round(productPrice) === Math.round(searchedPrice));
+        (minPrice.trim() === "" ||
+          (Number.isFinite(minimum) && productPrice >= minimum)) &&
+        (maxPrice.trim() === "" ||
+          (Number.isFinite(maximum) && productPrice <= maximum));
 
       const text = getSearchText(product);
+      const matchesSearch =
+        searchQuery.trim() === "" || text.includes(normalizeText(searchQuery.trim()));
       const matchesDetail =
         selectedDetails.length === 0 ||
         selectedDetails.some((detail) =>
-          text.includes(t(`shop.filterDetails.${detail}`).toLowerCase()),
+          text.includes(normalizeText(t(`shop.filterDetails.${detail}`))),
         ) ||
-        selectedDetails.some((detail) => text.includes(detail.toLowerCase()));
+        selectedDetails.some((detail) => text.includes(normalizeText(detail)));
 
       return (
         matchesSubcategory &&
         matchesColor &&
         matchesSize &&
         matchesPrice &&
+        matchesSearch &&
         matchesDetail
       );
     });
@@ -197,11 +244,29 @@ export function CategoryPage() {
     selectedSubcategories,
     selectedColor,
     selectedSize,
-    priceQuery,
+    searchQuery,
+    minPrice,
+    maxPrice,
     selectedDetails,
     isSouvenirs,
     t,
   ]);
+
+  const sortedProducts = useMemo(() => {
+    const next = [...filtered];
+    switch (sortBy) {
+      case "priceAsc":
+        return next.sort((a, b) => getProductPrice(a) - getProductPrice(b));
+      case "priceDesc":
+        return next.sort((a, b) => getProductPrice(b) - getProductPrice(a));
+      case "name":
+        return next.sort((a, b) => a.name.localeCompare(b.name, "es"));
+      case "stock":
+        return next.sort((a, b) => (b.stock ?? 0) - (a.stock ?? 0));
+      default:
+        return next;
+    }
+  }, [filtered, sortBy]);
 
   const scrollToProducts = () => {
     setTimeout(() => {
@@ -221,9 +286,35 @@ export function CategoryPage() {
   };
 
   const getCategoryLabel = (subcategory: FilterCategory) => {
-    const namespace = isSouvenirs ? "shop.souvenirFilters" : "shop.subcategories";
+    const namespace = subcategory in SOUVENIR_CATEGORY_MATCH
+      ? "shop.souvenirFilters"
+      : "shop.subcategories";
     return t(`${namespace}.${subcategory}`);
   };
+
+  const productBelongsToCategory = (product: (typeof routeCatalog)[number], subcategory: FilterCategory) => {
+    if (subcategory in SOUVENIR_CATEGORY_MATCH) {
+      const text = getSearchText(product);
+      return SOUVENIR_CATEGORY_MATCH[subcategory as SouvenirFilter].some((keyword) =>
+        text.includes(normalizeText(keyword)),
+      );
+    }
+
+    return product.subcategory === subcategory;
+  };
+
+  const getCategoryCount = (subcategory: FilterCategory) =>
+    routeCatalog.filter((product) => productBelongsToCategory(product, subcategory)).length;
+
+  const getDetailCount = (subcategory: FilterCategory, detail: string) =>
+    routeCatalog.filter((product) => {
+      if (!productBelongsToCategory(product, subcategory)) return false;
+      const text = getSearchText(product);
+      return (
+        text.includes(normalizeText(detail)) ||
+        text.includes(normalizeText(t(`shop.filterDetails.${detail}`)))
+      );
+    }).length;
 
   const toggleSubcategory = (subcategory: FilterCategory) => {
     setSelectedSubcategories((current) => {
@@ -256,10 +347,7 @@ export function CategoryPage() {
     scrollToProducts();
   };
 
-  const handlePriceSearch = (value: string) => {
-    setPriceQuery(value.replace(/[^\d.]/g, ""));
-    scrollToProducts();
-  };
+  const normalizePrice = (value: string) => value.replace(/[^\d.]/g, "");
 
   const handleFilterMouseEnter = (subcategory: FilterCategory) => {
     if (expanded) {
@@ -288,7 +376,10 @@ export function CategoryPage() {
     setSelectedDetails([]);
     setSelectedColor(null);
     setSelectedSize(null);
-    setPriceQuery("");
+    setSearchQuery("");
+    setMinPrice("");
+    setMaxPrice("");
+    setSortBy("featured");
     setExpanded(null);
     setHovered(null);
     scrollToProducts();
@@ -326,20 +417,35 @@ export function CategoryPage() {
           },
         ]
       : []),
-    ...(priceQuery
+    ...(searchQuery
       ? [
           {
-            id: "price",
-            label: `$${priceQuery}`,
-            remove: () => setPriceQuery(""),
+            id: "search",
+            label: `“${searchQuery}”`,
+            remove: () => setSearchQuery(""),
           },
         ]
+      : []),
+    ...(minPrice
+      ? [{ id: "min-price", label: `Desde $${minPrice}`, remove: () => setMinPrice("") }]
+      : []),
+    ...(maxPrice
+      ? [{ id: "max-price", label: `Hasta $${maxPrice}`, remove: () => setMaxPrice("") }]
       : []),
   ];
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
-      <aside className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-xl shadow-black/5 lg:sticky lg:top-24">
+    <div className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-8">
+      <button
+        type="button"
+        onClick={() => setFiltersOpen((current) => !current)}
+        className="flex w-full items-center justify-between rounded-2xl bg-neutral-950 px-5 py-4 text-sm font-black text-white shadow-lg lg:hidden"
+      >
+        <span className="inline-flex items-center gap-2"><SlidersHorizontal size={18} /> {t("shop.filters.title")}</span>
+        <span className="rounded-full bg-white/15 px-3 py-1 text-xs">{chips.length}</span>
+      </button>
+
+      <aside className={`${filtersOpen ? "block" : "hidden"} self-start rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-xl shadow-black/5 lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto`}>
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-accent">
@@ -366,6 +472,25 @@ export function CategoryPage() {
         <div className="space-y-5">
           <section>
             <h3 className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-neutral-400">
+              {t("shop.filters.search")}
+            </h3>
+            <label className="relative block">
+              <Search
+                size={17}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t("shop.filters.searchPlaceholder")}
+                className="w-full rounded-full border border-neutral-200 bg-neutral-50 px-11 py-3 text-sm font-bold text-neutral-950 outline-none transition focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/10"
+              />
+            </label>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-neutral-400">
               {t("shop.filters.category")}
             </h3>
 
@@ -374,6 +499,7 @@ export function CategoryPage() {
                 const isOpen = expanded === subcategory || hovered === subcategory;
                 const isSelected = selectedSubcategories.includes(subcategory);
                 const details = getDetails(subcategory);
+                const categoryCount = getCategoryCount(subcategory);
 
                 return (
                   <div
@@ -390,18 +516,20 @@ export function CategoryPage() {
                           : "text-neutral-700 hover:bg-neutral-50 hover:text-neutral-950"
                       }`}
                     >
-                      <span className="inline-flex items-center gap-3">
+                      <span className="inline-flex min-w-0 items-center gap-3">
                         <span
                           className={`h-2 w-2 rounded-full ${
                             isSelected ? "bg-accent" : "bg-neutral-300"
                           }`}
                         />
-                        {getCategoryLabel(subcategory)}
+                        <span className="truncate">{getCategoryLabel(subcategory)}</span>
                       </span>
-                      <ChevronDown
-                        size={16}
-                        className={`transition ${isOpen ? "rotate-180" : ""}`}
-                      />
+                      <span className="inline-flex shrink-0 items-center gap-2">
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-500">
+                          {categoryCount}
+                        </span>
+                        <ChevronDown size={16} className={`transition ${isOpen ? "rotate-180" : ""}`} />
+                      </span>
                     </button>
 
                     <div
@@ -412,27 +540,27 @@ export function CategoryPage() {
                       }`}
                     >
                         <div className="space-y-1.5">
-                          {details.map((detail) => (
-                            <button
-                              key={detail}
-                              type="button"
-                              onClick={() => toggleDetail(subcategory, detail)}
-                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-black transition ${
-                                selectedDetails.includes(detail)
-                                  ? "bg-neutral-950 text-white"
-                                  : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950"
-                              }`}
-                            >
-                              <span>{t(`shop.filterDetails.${detail}`)}</span>
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full ${
+                          {details.map((detail) => {
+                            const detailCount = getDetailCount(subcategory, detail);
+                            return (
+                              <button
+                                key={detail}
+                                type="button"
+                                disabled={detailCount === 0}
+                                onClick={() => toggleDetail(subcategory, detail)}
+                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
                                   selectedDetails.includes(detail)
-                                    ? "bg-white"
-                                    : "bg-neutral-300"
+                                    ? "bg-neutral-950 text-white"
+                                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950"
                                 }`}
-                              />
-                            </button>
-                          ))}
+                              >
+                                <span>{t(`shop.filterDetails.${detail}`)}</span>
+                                <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-center text-[10px] ${selectedDetails.includes(detail) ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-500"}`}>
+                                  {detailCount}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                   </div>
@@ -445,35 +573,31 @@ export function CategoryPage() {
             <h3 className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-neutral-400">
               {t("shop.filters.price")}
             </h3>
-            <label className="relative block">
-              <Search
-                size={17}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs font-bold text-neutral-500">
+                {t("shop.filters.minPrice")}
               <input
-                type="text"
+                type="number"
                 inputMode="decimal"
-                value={priceQuery}
-                onChange={(event) => handlePriceSearch(event.target.value)}
-                placeholder={t("shop.filters.pricePlaceholder")}
-                className="w-full rounded-full border border-neutral-200 bg-neutral-50 px-11 py-3 text-sm font-bold text-neutral-950 outline-none transition focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/10"
+                min="0"
+                value={minPrice}
+                onChange={(event) => setMinPrice(normalizePrice(event.target.value))}
+                placeholder="$0"
+                className="mt-2 w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-3 text-sm font-bold text-neutral-950 outline-none transition focus:border-accent focus:bg-white"
               />
-            </label>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {quickPrices.map((price) => (
-                <button
-                  key={price}
-                  type="button"
-                  onClick={() => handlePriceSearch(String(price))}
-                  className={`rounded-full px-3 py-2 text-xs font-black transition hover:-translate-y-0.5 ${
-                    priceQuery === String(price)
-                      ? "bg-primary text-neutral-950"
-                      : "bg-primary/20 text-neutral-700 hover:bg-primary"
-                  }`}
-                >
-                  ${price}
-                </button>
-              ))}
+              </label>
+              <label className="block text-xs font-bold text-neutral-500">
+                {t("shop.filters.maxPrice")}
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={maxPrice}
+                  onChange={(event) => setMaxPrice(normalizePrice(event.target.value))}
+                  placeholder="$100"
+                  className="mt-2 w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-3 text-sm font-bold text-neutral-950 outline-none transition focus:border-accent focus:bg-white"
+                />
+              </label>
             </div>
           </section>
 
@@ -484,7 +608,7 @@ export function CategoryPage() {
                   {t("shop.filters.size")}
                 </h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {SIZES.map((size) => (
+                  {availableSizes.map((size) => (
                     <button
                       key={size}
                       type="button"
@@ -511,7 +635,7 @@ export function CategoryPage() {
                   {t("shop.filters.color")}
                 </h3>
                 <div className="grid grid-cols-5 gap-3">
-                  {COLORS.map((color) => (
+                  {availableColors.map((color) => (
                     <button
                       key={color.value}
                       type="button"
@@ -538,21 +662,30 @@ export function CategoryPage() {
         </div>
       </aside>
 
-      <section ref={productsRef} className="scroll-mt-28 space-y-6">
+      <section ref={productsRef} className="min-w-0 scroll-mt-28 space-y-6">
         <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-semibold text-neutral-950">
-              {filtered.length}{" "}
+              {sortedProducts.length}{" "}
               <span className="text-neutral-500">
-                {filtered.length === 1 ? t("shop.product") : t("shop.products")}
+                {sortedProducts.length === 1 ? t("shop.product") : t("shop.products")}
               </span>
             </p>
 
-            <p className="text-sm text-neutral-500">
-              {priceQuery
-                ? t("shop.filters.priceResult", { price: priceQuery })
-                : t("shop.filters.noPrice")}
-            </p>
+            <label className="inline-flex items-center gap-2 text-sm font-bold text-neutral-600">
+              <ArrowUpDown size={16} />
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                className="rounded-xl border border-neutral-200 bg-white px-3 py-2 outline-none focus:border-accent"
+              >
+                <option value="featured">{t("shop.sort.featured")}</option>
+                <option value="priceAsc">{t("shop.sort.priceAsc")}</option>
+                <option value="priceDesc">{t("shop.sort.priceDesc")}</option>
+                <option value="name">{t("shop.sort.name")}</option>
+                <option value="stock">{t("shop.sort.stock")}</option>
+              </select>
+            </label>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -576,7 +709,7 @@ export function CategoryPage() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {sortedProducts.length === 0 ? (
           <div className="rounded-3xl border border-neutral-200 bg-white p-12 text-center shadow-sm">
             <p className="text-lg font-semibold text-neutral-700">
               {t("shop.empty.title")}
@@ -584,8 +717,8 @@ export function CategoryPage() {
             <p className="mt-2 text-sm text-neutral-500">{t("shop.empty.text")}</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((product) => (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] gap-5">
+            {sortedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>

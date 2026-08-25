@@ -4,6 +4,8 @@ import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
+import jakarta.validation.constraints.Digits
+import jakarta.validation.constraints.Pattern
 import java.math.BigDecimal
 
 data class ProductResponse(
@@ -36,6 +38,7 @@ data class ProductRequest(
 
     @field:NotBlank
     @field:Size(max = 80)
+    @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$")
     val sku: String,
 
     @field:NotBlank
@@ -59,15 +62,22 @@ data class ProductRequest(
     val concept: String,
 
     @field:DecimalMin("0.01")
+    @field:Digits(integer = 8, fraction = 2)
     val priceUsd: BigDecimal,
 
+    @field:DecimalMin("0.01")
+    @field:Digits(integer = 8, fraction = 2)
     val compareAtPriceUsd: BigDecimal? = null,
 
     @field:NotBlank
+    @field:Size(max = 500)
     val image: String,
 
+    @field:Size(max = 4)
     val images: List<String> = emptyList(),
+    @field:Size(max = 1200)
     val description: String? = null,
+    @field:Size(max = 1200)
     val story: String? = null,
 
     @field:NotBlank
@@ -78,6 +88,7 @@ data class ProductRequest(
     @field:Size(max = 30)
     val color: String,
 
+    @field:Size(max = 12)
     val sizes: List<String> = emptyList(),
 
     @field:Min(0)

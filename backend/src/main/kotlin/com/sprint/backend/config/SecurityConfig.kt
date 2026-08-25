@@ -3,6 +3,7 @@ package com.sprint.backend.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sprint.backend.audit.AuditActivityFilter
 import com.sprint.backend.audit.AuditLogService
+import com.sprint.backend.users.UserRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -25,6 +26,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.access.intercept.AuthorizationFilter
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -39,12 +41,24 @@ class SecurityConfig {
         jwtAuthenticationConverter: JwtAuthenticationConverter,
         corsConfigurationSource: CorsConfigurationSource,
         objectMapper: ObjectMapper,
-        auditLogService: AuditLogService
+        auditLogService: AuditLogService,
+        userRepository: UserRepository
     ): SecurityFilterChain {
         return http
             .csrf { it.disable() }
+            .httpBasic { it.disable() }
+            .formLogin { it.disable() }
+            .logout { it.disable() }
+            .requestCache { it.disable() }
             .cors { it.configurationSource(corsConfigurationSource) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .headers { headers ->
+                headers.contentTypeOptions { }
+                headers.frameOptions { it.deny() }
+                headers.referrerPolicy { it.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER) }
+                headers.contentSecurityPolicy { it.policyDirectives("default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'") }
+                headers.httpStrictTransportSecurity { it.includeSubDomains(true).maxAgeInSeconds(31_536_000) }
+            }
             .authorizeHttpRequests {
                 it.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(
@@ -81,6 +95,7 @@ class SecurityConfig {
                     runCatching { auditLogService.record(request, 403, 0) }
                 }
             }
+            .addFilterAfter(DisabledAccountFilter(userRepository, objectMapper, auditLogService), BearerTokenAuthenticationFilter::class.java)
             .addFilterAfter(AuditActivityFilter(auditLogService), AuthorizationFilter::class.java)
             .build()
     }
@@ -128,11 +143,17 @@ class SecurityConfig {
         @Value("\${app.cors.allowed-origins}") allowedOrigins: String = ""
     ): CorsConfigurationSource {
         val configuration = CorsConfiguration()
-        configuration.allowedOrigins = allowedOrigins.split(',').map { it.trim() }.filter { it.isNotBlank() }
+        val origins = allowedOrigins.split(',').map { it.trim().removeSuffix("/") }.filter { it.isNotBlank() }
+        require(origins.isNotEmpty()) { "APP_CORS_ALLOWED_ORIGINS debe incluir al menos un origen" }
+        require(origins.none { it == "*" }) { "CORS no admite el origen comodín" }
+        require(origins.all { it.startsWith("https://") || it.matches(Regex("^http://(localhost|127\\.0\\.0\\.1)(:\\d+)?$")) }) {
+            "CORS solo admite HTTPS o direcciones locales de desarrollo"
+        }
+        configuration.allowedOrigins = origins
         configuration.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         configuration.allowedHeaders = listOf("Authorization", "Content-Type", "Idempotency-Key")
         configuration.exposedHeaders = listOf("Location", REQUEST_ID_HEADER)
-        configuration.allowCredentials = true
+        configuration.allowCredentials = false
         configuration.maxAge = 3600
         return UrlBasedCorsConfigurationSource().also {
             it.registerCorsConfiguration("/**", configuration)

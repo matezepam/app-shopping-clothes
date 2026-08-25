@@ -97,13 +97,13 @@ function readToken(): string | null {
 }
 
 function readStoredUser(): User | null {
-  if (typeof localStorage === "undefined") return null;
+  if (typeof sessionStorage === "undefined") return null;
 
   try {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = sessionStorage.getItem(USER_KEY);
     return raw ? (JSON.parse(raw) as User) : null;
   } catch {
-    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(USER_KEY);
     return null;
   }
 }
@@ -185,7 +185,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setUser(null);
         sessionStorage.removeItem(TOKEN_KEY);
         sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
+        sessionStorage.removeItem(USER_KEY);
         setToken(null);
         return;
       }
@@ -204,7 +204,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ({ user: currentUser } = await api.me(activeToken));
       }
 
-      localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+      sessionStorage.setItem(USER_KEY, JSON.stringify(currentUser));
       setUser(currentUser);
       applyUserPreferences(currentUser);
       setCurrencyState("USD");
@@ -212,7 +212,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setUser(null);
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(USER_KEY);
       setToken(null);
     } finally {
       setLoadingAuth(false);
@@ -227,9 +227,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const res = await api.login({ email, password });
     const { user: currentUser } = await api.me(res.token);
 
+    localStorage.removeItem(CART_KEY);
+    localStorage.removeItem(WISHLIST_KEY);
+    setCart([]);
+    setWishlistProductIds([]);
+    setOrders([]);
+    setReturns([]);
+
     sessionStorage.setItem(TOKEN_KEY, res.token);
     if (res.refreshToken) sessionStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+    sessionStorage.setItem(USER_KEY, JSON.stringify(currentUser));
     applyUserPreferences(currentUser);
     setCurrencyState("USD");
 
@@ -270,9 +277,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    localStorage.removeItem(CART_KEY);
+    localStorage.removeItem(WISHLIST_KEY);
     setToken(null);
     setUser(null);
+    setCart([]);
+    setWishlistProductIds([]);
     setOrders([]);
     setReturns([]);
   }, []);
@@ -310,7 +321,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         data,
       );
 
-      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+      sessionStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
       applyUserPreferences(updatedUser);
 
       setCurrencyState("USD");
@@ -323,7 +334,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const persistUser = useCallback((updatedUser: User) => {
-    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    sessionStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
     applyUserPreferences(updatedUser);
 
     setCurrencyState("USD");
@@ -362,32 +373,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const addToCart = useCallback((productId: string, qty = 1) => {
+    const product = catalog.find((item) => item.id === productId);
+    const availableStock = product?.stock ?? 0;
+    if (!product || availableStock <= 0 || qty <= 0) return;
+
     setCart((prev) => {
       const found = prev.find((i) => i.productId === productId);
 
       if (found) {
         return prev.map((i) =>
           i.productId === productId
-            ? { ...i, quantity: i.quantity + qty }
+            ? { ...i, quantity: Math.min(availableStock, i.quantity + qty) }
             : i,
         );
       }
 
-      return [...prev, { productId, quantity: qty }];
+      return [...prev, { productId, quantity: Math.min(availableStock, qty) }];
     });
-  }, []);
+  }, [catalog]);
 
   const setQuantity = useCallback((productId: string, quantity: number) => {
+    const availableStock = catalog.find((item) => item.id === productId)?.stock ?? 0;
     setCart((prev) =>
       prev
         .map((i) =>
           i.productId === productId
-            ? { ...i, quantity: Math.max(0, quantity) }
+            ? { ...i, quantity: Math.min(availableStock, Math.max(0, quantity)) }
             : i,
         )
         .filter((i) => i.quantity > 0),
     );
-  }, []);
+  }, [catalog]);
 
   const removeFromCart = useCallback((productId: string) => {
     setCart((prev) => prev.filter((i) => i.productId !== productId));
