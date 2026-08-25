@@ -42,6 +42,13 @@ jobs:
 
   containers:
     runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-compose-password
+      PGADMIN_EMAIL: ci@example.invalid
+      PGADMIN_PASSWORD: ci-pgadmin-password
+      AWS_COGNITO_REGION: us-east-1
+      AWS_COGNITO_USER_POOL_ID: us-east-1_ci_validation
+      AWS_COGNITO_CLIENT_ID: ci-validation-client
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

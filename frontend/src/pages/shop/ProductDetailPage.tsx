@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
-import { Heart, Minus, Plus, ShoppingBag, ZoomIn } from "lucide-react";
+import { ArrowLeft, Heart, Minus, PackageCheck, Plus, Ruler, ShieldCheck, ShoppingBag, ZoomIn } from "lucide-react";
 import { api } from "../../lib/api";
 import { formatMoney, fromUsd } from "../../lib/currency";
+
+const GALLERY_VIEW_KEYS = ["front", "back", "detail", "full"] as const;
 import { useStore } from "../../context/StoreContext";
 import type { Product } from "../../types/store";
 
@@ -24,6 +26,7 @@ export function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState("");
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [selectionError, setSelectionError] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -45,6 +48,13 @@ export function ProductDetailPage() {
     if (!product) return [];
     return product.images?.length ? product.images : [product.image];
   }, [product]);
+
+  useEffect(() => {
+    setActiveImage(0);
+    setSelectedSize("");
+    setQty(1);
+    setSelectionError("");
+  }, [product?.id]);
 
   if (loading && !product) {
     return (
@@ -75,15 +85,33 @@ export function ProductDetailPage() {
   const compareAt = product.compareAtPriceUsd
     ? formatMoney(fromUsd(product.compareAtPriceUsd, currency), currency)
     : null;
+  const stock = product.stock ?? 0;
+  const available = stock > 0;
+
+  const addSelectedProduct = () => {
+    if (!available) return;
+    if (product.sizes?.length && !selectedSize) {
+      setSelectionError(t("productDetail.selectSize"));
+      return;
+    }
+    setSelectionError("");
+    addToCart(product.id, Math.min(qty, stock));
+  };
 
   return (
     <section className="animate-fade-up space-y-8">
-      <Link
-        to={`/category/${product.collection ?? product.category}`}
-        className="inline-flex text-sm font-bold text-neutral-500 transition hover:text-neutral-950"
-      >
-        {t("productDetail.back")}
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-neutral-200 bg-white p-3 shadow-sm">
+        <Link
+          to={`/category/${product.collection ?? product.category}`}
+          className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-accent"
+        >
+          <ArrowLeft size={18} />
+          {t("productDetail.back")}
+        </Link>
+        <p className="px-3 text-xs font-bold text-neutral-500">
+          {t(`categories.${product.collection ?? product.category}`)} <span className="mx-2 text-neutral-300">/</span> {product.name}
+        </p>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="grid gap-4 lg:grid-cols-[96px_1fr]">
@@ -93,6 +121,8 @@ export function ProductDetailPage() {
                 key={`${image}-${index}`}
                 type="button"
                 onClick={() => setActiveImage(index)}
+                aria-label={t(`productDetail.galleryViews.${GALLERY_VIEW_KEYS[index] ?? "additional"}`)}
+                title={t(`productDetail.galleryViews.${GALLERY_VIEW_KEYS[index] ?? "additional"}`)}
                 className={[
                   "h-24 w-24 shrink-0 overflow-hidden rounded-2xl border bg-white transition hover:-translate-y-0.5",
                   activeImage === index
@@ -102,8 +132,12 @@ export function ProductDetailPage() {
               >
                 <img
                   src={image}
-                  alt=""
+                  alt={`${product.name} · ${t(`productDetail.galleryViews.${GALLERY_VIEW_KEYS[index] ?? "additional"}`)}`}
                   className="h-full w-full object-cover"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = "/images/catalog/coleccion-recuerdos-andes.png";
+                  }}
                 />
               </button>
             ))}
@@ -114,10 +148,17 @@ export function ProductDetailPage() {
               src={images[activeImage] ?? product.image}
               alt={product.name}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-125"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = "/images/catalog/coleccion-recuerdos-andes.png";
+              }}
             />
             <div className="pointer-events-none absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-black text-neutral-950 shadow-sm backdrop-blur">
               <ZoomIn size={15} />
               {t("productDetail.zoom")}
+            </div>
+            <div className="pointer-events-none absolute right-5 top-5 rounded-full bg-neutral-950/85 px-4 py-2 text-xs font-black text-white shadow-sm backdrop-blur">
+              {t(`productDetail.galleryViews.${GALLERY_VIEW_KEYS[activeImage] ?? "additional"}`)} · {activeImage + 1}/{images.length}
             </div>
           </div>
         </div>
@@ -146,6 +187,19 @@ export function ProductDetailPage() {
             ) : null}
           </div>
 
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
+            <span className={`rounded-full px-3 py-2 ${available ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+              {available
+                ? t("productDetail.inStock", { count: stock })
+                : t("product.soldOut")}
+            </span>
+            {product.sku ? (
+              <span className="rounded-full bg-neutral-100 px-3 py-2 text-neutral-600">
+                SKU {product.sku}
+              </span>
+            ) : null}
+          </div>
+
           <div className="mt-7 grid gap-5">
             {product.sizes?.length ? (
               <section>
@@ -157,7 +211,11 @@ export function ProductDetailPage() {
                     <button
                       key={size}
                       type="button"
-                      onClick={() => setSelectedSize(size)}
+                      aria-pressed={selectedSize === size}
+                      onClick={() => {
+                        setSelectedSize((current) => current === size ? "" : size);
+                        setSelectionError("");
+                      }}
                       className={[
                         "min-w-12 rounded-2xl border px-4 py-3 text-sm font-black transition",
                         selectedSize === size
@@ -189,7 +247,8 @@ export function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={() => setQty((current) => Math.max(1, current - 1))}
-                  className="grid h-10 w-10 place-items-center rounded-full transition hover:bg-neutral-100"
+                  disabled={qty <= 1}
+                  className="grid h-10 w-10 place-items-center rounded-full transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-300"
                 >
                   <Minus size={16} />
                 </button>
@@ -197,7 +256,8 @@ export function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={() => setQty((current) => current + 1)}
-                  className="grid h-10 w-10 place-items-center rounded-full transition hover:bg-neutral-100"
+                  disabled={!available || qty >= stock}
+                  className="grid h-10 w-10 place-items-center rounded-full transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-300"
                 >
                   <Plus size={16} />
                 </button>
@@ -205,14 +265,21 @@ export function ProductDetailPage() {
             </section>
           </div>
 
+          {selectionError ? (
+            <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+              {selectionError}
+            </p>
+          ) : null}
+
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={() => addToCart(product.id, qty)}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-neutral-950 px-6 py-4 text-sm font-black text-white transition hover:bg-primary hover:text-neutral-950"
+              disabled={!available}
+              onClick={addSelectedProduct}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-neutral-950 px-6 py-4 text-sm font-black text-white transition hover:bg-primary hover:text-neutral-950 disabled:cursor-not-allowed disabled:bg-neutral-300"
             >
               <ShoppingBag size={18} />
-              {t("product.add")}
+              {available ? t("product.add") : t("product.soldOut")}
             </button>
             <button
               type="button"
@@ -223,16 +290,47 @@ export function ProductDetailPage() {
               {wished ? t("productDetail.saved") : t("productDetail.save")}
             </button>
           </div>
+
+          <p className="mt-4 text-xs leading-5 text-neutral-500">
+            {t("productDetail.purchaseNote")}
+          </p>
         </div>
       </div>
 
-      <section className="rounded-[2rem] border border-neutral-200 bg-white p-7 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-accent">
-          {t("product.story")}
-        </p>
-        <p className="mt-4 max-w-3xl text-base leading-8 text-neutral-600">
-          {product.story ?? t(`products.${product.id}.story`, t(`concepts.${product.concept}.desc`))}
-        </p>
+      <section className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+        <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="p-7 md:p-10">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-accent">
+              {t("product.story")}
+            </p>
+            <h2 className="mt-3 font-display text-3xl font-black text-neutral-950">
+              {t("productDetail.storyTitle")}
+            </h2>
+            <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-600">
+              {product.story ?? t(`products.${product.id}.story`, t(`concepts.${product.concept}.desc`))}
+            </p>
+          </div>
+
+          <aside className="bg-neutral-950 p-7 text-white md:p-10">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">
+              {t("productDetail.usefulDetails")}
+            </p>
+            <div className="mt-6 space-y-5">
+              <div className="flex gap-3">
+                <Ruler className="mt-0.5 shrink-0 text-primary" size={20} />
+                <div><p className="font-black">{t("productDetail.fitTitle")}</p><p className="mt-1 text-sm leading-6 text-white/60">{product.sizes?.length ? product.sizes.join(" · ") : t("productDetail.singleFormat")}</p></div>
+              </div>
+              <div className="flex gap-3">
+                <PackageCheck className="mt-0.5 shrink-0 text-primary" size={20} />
+                <div><p className="font-black">{t("productDetail.availabilityTitle")}</p><p className="mt-1 text-sm leading-6 text-white/60">{t("productDetail.availabilityText", { count: stock })}</p></div>
+              </div>
+              <div className="flex gap-3">
+                <ShieldCheck className="mt-0.5 shrink-0 text-primary" size={20} />
+                <div><p className="font-black">{t("productDetail.supportTitle")}</p><p className="mt-1 text-sm leading-6 text-white/60">{t("productDetail.supportText")}</p></div>
+              </div>
+            </div>
+          </aside>
+        </div>
       </section>
     </section>
   );

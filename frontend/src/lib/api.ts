@@ -50,6 +50,11 @@ export const api = {
   createProduct: (token: string, body: ProductPayload) => request<{ product: Product }>("/api/products/admin", { method: "POST", token, body: JSON.stringify(body) }),
   updateProduct: (token: string, id: string, body: ProductPayload) => request<{ product: Product }>(`/api/products/admin/${encodeURIComponent(id)}`, { method: "PUT", token, body: JSON.stringify(body) }),
   deleteProduct: (token: string, id: string) => request<void>(`/api/products/admin/${encodeURIComponent(id)}`, { method: "DELETE", token }),
+  uploadProductImages: (token: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((file) => form.append("images", file));
+    return request<{ images: { url: string; name: string; size: number }[] }>("/api/products/admin/images", { method: "POST", token, body: form });
+  },
 
   register: (body: RegisterPayload) => request<RegistrationResponse>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
   confirmRegistration: (email: string, code: string) => request<void>("/api/auth/confirm", { method: "POST", body: JSON.stringify({ email, code }) }),
@@ -88,7 +93,7 @@ export const api = {
   customerStatus: (token: string, id: number, enabled: boolean) => request<{ customer: CustomerRow }>(`/api/admin/customers/${id}`, { method: "PATCH", token, body: JSON.stringify({ enabled }) }),
 };
 
-export interface AuthTokens { token: string; tokenType: string; refreshToken?: string; idToken?: string; expiresIn?: number; }
+export interface AuthTokens { token: string; tokenType: string; refreshToken?: string; expiresIn?: number; }
 export interface RegistrationResponse { email: string; confirmed: boolean; delivery?: string | null; }
 export interface RegisterPayload { firstName: string; lastName: string; email: string; password: string; phone: string; country: string; gender: string; birthDate: string; age: number; }
 export interface AdminStats { summary: { ordersCount: number; revenueUsd: number; unitsSold: number; returnsPending: number; lowStockProducts: number }; topProducts: { productId: string; name: string; unitsSold: number; revenueUsd: number }[]; revenueByDay: { day: string; revenueUsd: number }[]; }

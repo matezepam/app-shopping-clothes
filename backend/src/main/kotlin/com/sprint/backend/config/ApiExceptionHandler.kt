@@ -62,12 +62,21 @@ class ApiExceptionHandler {
 
     @ExceptionHandler(CognitoIdentityProviderException::class)
     fun cognito(error: CognitoIdentityProviderException, request: HttpServletRequest): ResponseEntity<ApiErrorResponse> {
-        val status = when (error.awsErrorDetails()?.errorCode()) {
+        val errorCode = error.awsErrorDetails()?.errorCode()
+        val status = when (errorCode) {
             "NotAuthorizedException" -> HttpStatus.UNAUTHORIZED
             "UsernameExistsException" -> HttpStatus.CONFLICT
+            "TooManyRequestsException", "LimitExceededException" -> HttpStatus.TOO_MANY_REQUESTS
             else -> HttpStatus.BAD_REQUEST
         }
-        return response(status, "COGNITO_${error.awsErrorDetails()?.errorCode() ?: "ERROR"}", error.awsErrorDetails()?.errorMessage() ?: "Cognito rechazó la operación", request)
+        val message = when (status) {
+            HttpStatus.UNAUTHORIZED -> "No fue posible validar las credenciales"
+            HttpStatus.CONFLICT -> "La cuenta ya existe"
+            HttpStatus.TOO_MANY_REQUESTS -> "Demasiados intentos. Espera antes de continuar."
+            else -> "No fue posible completar la operación de identidad"
+        }
+        logger.warn("Identity provider rejected request requestId={} path={} code={}", request.requestId(), request.requestURI, errorCode)
+        return response(status, "IDENTITY_PROVIDER_ERROR", message, request)
     }
 
     @ExceptionHandler(Exception::class)

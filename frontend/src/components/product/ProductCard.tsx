@@ -18,7 +18,11 @@ export function ProductCard({ product }: { product: Product }) {
   const storyKey = `products.${product.id}.story` as const;
   const storyText = t(storyKey);
   const price = fromUsd(product.priceUsd, currency);
+  const compareAtPrice = product.compareAtPriceUsd
+    ? fromUsd(product.compareAtPriceUsd, currency)
+    : null;
   const wished = isWishlisted(product.id);
+  const available = (product.stock ?? 0) > 0;
 
   const galleryImages =
     fullProduct.images && fullProduct.images.length > 0
@@ -36,11 +40,8 @@ export function ProductCard({ product }: { product: Product }) {
               alt={product.name}
               className={`product-card-img product-card-img-${index} absolute inset-0 h-full w-full object-cover`}
               onError={(e) => {
-                (e.target as HTMLImageElement).src =
-                  "data:image/svg+xml," +
-                  encodeURIComponent(
-                    `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500"><rect fill="%231e2d4d" width="100%" height="100%"/><text x="50%" y="50%" fill="%23c9a227" font-family="sans-serif" font-size="24" text-anchor="middle">Eagle</text></svg>`,
-                  );
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "/images/catalog/coleccion-recuerdos-andes.png";
               }}
             />
           ))}
@@ -53,7 +54,7 @@ export function ProductCard({ product }: { product: Product }) {
 
           <button
             type="button"
-            aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
+            aria-label={wished ? t("product.removeWishlist") : t("product.addWishlist")}
             className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-accent shadow-sm backdrop-blur-md transition hover:bg-accent hover:text-white"
             onClick={(e) => {
               e.preventDefault();
@@ -95,17 +96,25 @@ export function ProductCard({ product }: { product: Product }) {
             (storyText === storyKey ? t(`concepts.${product.concept}.desc`) : storyText)}
         </p>
 
-        <div className="mt-1 flex items-center justify-between gap-3">
-          <span className="font-display text-xl font-bold text-foreground">
-            {formatMoney(price, currency)}
-          </span>
+        <div className="mt-1 flex flex-col gap-3">
+          <div>
+            <span className="font-display text-xl font-bold text-foreground">
+              {formatMoney(price, currency)}
+            </span>
+            {compareAtPrice && compareAtPrice > price ? (
+              <span className="ml-2 text-xs font-bold text-muted-foreground line-through">
+                {formatMoney(compareAtPrice, currency)}
+              </span>
+            ) : null}
+          </div>
 
           <button
             type="button"
+            disabled={!available}
             onClick={() => addToCart(product.id)}
-            className="rounded-full bg-accent px-5 py-2 text-sm font-bold text-white shadow-md shadow-black/10 transition hover:scale-[1.04] hover:bg-secondary"
+            className="w-full rounded-full bg-accent px-5 py-3 text-sm font-bold text-white shadow-md shadow-black/10 transition hover:-translate-y-0.5 hover:bg-secondary disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:shadow-none"
           >
-            {t("product.add")}
+            {available ? t("product.add") : t("product.soldOut")}
           </button>
         </div>
       </div>

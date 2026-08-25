@@ -32,13 +32,15 @@ class ProductService(
 
     @Transactional
     fun create(request: ProductRequest): ProductResponse {
+        validateRequest(request)
 
         val id = request.id?.trim()?.takeIf { it.isNotBlank() } ?: slugify(request.name)
+        require(id.matches(Regex("^[a-z0-9][a-z0-9-]{1,119}$"))) { "El identificador del producto no es válido" }
         if (productRepository.existsById(id)) {
             throw ConflictException("Ya existe un producto con ese identificador")
         }
 
-        if (productRepository.existsBySku(request.sku.trim())) {
+        if (productRepository.existsBySku(normalizeSku(request.sku))) {
             throw ConflictException("Ya existe un producto con ese SKU")
         }
 
@@ -47,15 +49,16 @@ class ProductService(
 
     @Transactional
     fun update(id: String, request: ProductRequest): ProductResponse {
+        validateRequest(request)
         val product = productRepository.findById(id).orElseThrow {
             IllegalArgumentException("Producto no encontrado")
         }
 
-        productRepository.findBySku(request.sku.trim())?.let {
+        productRepository.findBySku(normalizeSku(request.sku))?.let {
             if (it.id != id) throw ConflictException("Ya existe un producto con ese SKU")
         }
 
-        product.sku = request.sku.trim()
+        product.sku = normalizeSku(request.sku)
         product.name = request.name.trim()
         product.collection = normalizeCollection(request.collection)
         product.category = request.category.trim()
@@ -87,7 +90,7 @@ class ProductService(
     private fun ProductRequest.toProduct(id: String): Product {
         return Product(
             id = id,
-            sku = sku.trim(),
+            sku = normalizeSku(sku),
             name = name.trim(),
             collection = normalizeCollection(collection),
             category = category.trim(),
@@ -151,6 +154,62 @@ class ProductService(
         }
     }
 
+    private fun validateRequest(request: ProductRequest) {
+        val collection = request.collection.trim().lowercase()
+        val category = request.category.trim().lowercase()
+        val subcategory = request.subcategory.trim().lowercase()
+        val status = request.status.trim().lowercase()
+        val gender = request.gender.trim().lowercase()
+        val color = request.color.trim().lowercase()
+
+        require(collection in setOf("men", "women", "souvenirs")) {
+            "La colección debe ser men, women o souvenirs"
+        }
+        val allowedCategories = if (collection == "souvenirs") {
+            setOf("art", "mugs", "embroidery", "souvenirs")
+        } else {
+            setOf("shirts", "hoodies", "caps", "pants", "bags")
+        }
+        require(category in allowedCategories) {
+            "La categoría no corresponde a la colección seleccionada"
+        }
+        val allowedSubcategories = if (collection == "souvenirs") {
+            setOf("recuadros", "tazas", "bordados")
+        } else {
+            setOf("camisetas", "sudaderas", "gorras", "pantalones", "bolsos", "bisuteria", "joyas")
+        }
+        require(subcategory in allowedSubcategories) {
+            "La subcategoría no corresponde a la colección seleccionada"
+        }
+        require(status in setOf("active", "draft", "disabled")) {
+            "El estado del producto no es válido"
+        }
+        require(gender in setOf("male", "female")) {
+            "El género del producto no es válido"
+        }
+        require(color in setOf("negro", "blanco", "rojo", "azul", "verde", "beige", "gris", "dorado", "plateado", "rosa")) {
+            "El color del producto no es válido"
+        }
+        require(request.compareAtPriceUsd == null || request.compareAtPriceUsd > request.priceUsd) {
+            "El precio anterior debe ser mayor que el precio actual"
+        }
+        val normalizedImages = request.images.map { it.trim() }
+        val imagePaths = (listOf(request.image.trim()) + normalizedImages).distinct()
+        require(normalizedImages.size <= 4 && normalizedImages.distinct().size == normalizedImages.size && imagePaths.size <= 4) {
+            "Las imágenes contienen valores repetidos o exceden el límite"
+        }
+        require(imagePaths.all(::isAllowedImagePath)) { "Las imágenes deben provenir del almacenamiento autorizado de Sprint" }
+        require(request.description?.length ?: 0 <= 1200 && request.story?.length ?: 0 <= 1200) { "La descripción o historia es demasiado extensa" }
+        require(request.sizes.clean().size <= 12 && request.sizes.clean().all { it.length <= 20 && it.matches(Regex("^[\\p{L}0-9+/-]+$")) }) {
+            "Las tallas contienen valores no permitidos"
+        }
+        if (collection != "souvenirs") {
+            require(request.sizes.clean().isNotEmpty()) {
+                "Una prenda debe incluir al menos una talla"
+            }
+        }
+    }
+
     private fun List<String>.clean(): List<String> {
         return map { it.trim() }.filter { it.isNotBlank() }.distinct()
     }
@@ -171,5 +230,15 @@ class ProductService(
             .replace("\\s+".toRegex(), "-")
             .replace("-+".toRegex(), "-")
             .trim('-')
+    }
+
+    private fun normalizeSku(value: String) = value.trim().uppercase()
+
+    private fun isAllowedImagePath(value: String): Boolean {
+        val normalized = value.lowercase()
+        return normalized.matches(Regex("^/api/products/media/[a-f0-9-]{36}\\.(jpg|png|webp)$")) ||
+            normalized.matches(
+                Regex("^/images/(catalog|products)/(?:[a-z0-9][a-z0-9._-]*/)*[a-z0-9][a-z0-9._-]*\\.(jpg|jpeg|png|webp|svg)$")
+            )
     }
 }

@@ -88,6 +88,8 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
   whatsapp:
     business-number: ${APP_WHATSAPP_BUSINESS_NUMBER}
+  uploads:
+    products-directory: ${APP_PRODUCT_UPLOAD_DIRECTORY:/tmp/sprint-product-images}
   cognito:
     region: ${AWS_COGNITO_REGION}
     user-pool-id: ${AWS_COGNITO_USER_POOL_ID}

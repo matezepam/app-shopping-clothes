@@ -20,7 +20,7 @@ class CatalogInventoryIntegrationTests(@Autowired private val mockMvc: MockMvc, 
 
     @Test
     fun `product is created pending then stocked moderated and published`() {
-        val product = mapOf("id" to "integration-product", "sku" to "INT-001", "name" to "Producto integrado", "collection" to "men", "category" to "shirts", "subcategory" to "camisetas", "concept" to "andes", "priceUsd" to 19.99, "image" to "/product.svg", "images" to listOf("/product.svg"), "gender" to "male", "color" to "negro", "sizes" to listOf("M"), "stock" to 99, "status" to "active")
+        val product = mapOf("id" to "integration-product", "sku" to "INT-001", "name" to "Producto integrado", "collection" to "men", "category" to "shirts", "subcategory" to "camisetas", "concept" to "andes", "priceUsd" to 19.99, "image" to "/images/products/tee.svg", "images" to listOf("/images/products/tee.svg"), "gender" to "male", "color" to "negro", "sizes" to listOf("M"), "stock" to 99, "status" to "active")
         mockMvc.post("/api/products/admin") { with(admin()); contentType = org.springframework.http.MediaType.APPLICATION_JSON; content = json.writeValueAsString(product) }
             .andExpect { status { isCreated() }; jsonPath("$.product.moderationStatus") { value("PENDING") }; jsonPath("$.product.stock") { value(0) } }
         mockMvc.post("/api/products/admin") { with(admin()); contentType = org.springframework.http.MediaType.APPLICATION_JSON; content = json.writeValueAsString(product + ("id" to "integration-product-duplicate")) }

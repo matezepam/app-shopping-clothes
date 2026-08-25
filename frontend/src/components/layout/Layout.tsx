@@ -13,7 +13,7 @@ const userAvatar = "/images/profile/login-avatar.svg";
 
 function navClass(isActive: boolean) {
   return [
-    "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+    "rounded-full px-3 py-2 text-sm font-semibold transition-colors xl:px-4",
     isActive
       ? "bg-white text-[#0a0f1a]"
       : "text-white/70 hover:bg-white/10 hover:text-white",
@@ -31,6 +31,7 @@ export function Layout() {
     catalog,
     currency,
     addToCart,
+    setQuantity,
     removeFromCart,
     toggleWishlist,
     updateProfile,
@@ -76,6 +77,7 @@ export function Layout() {
                 name: p.name,
                 price: p.priceUsd,
                 image: p.image,
+                stock: p.stock ?? 0,
               }
             : null;
         })
@@ -85,6 +87,7 @@ export function Layout() {
         name: string;
         price: number;
         image: string;
+        stock: number;
       }>,
     [cart, catalog],
   );
@@ -121,12 +124,12 @@ export function Layout() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <a href="#main-content" className="skip-link">Saltar al contenido principal</a>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0f1a]/95 text-white shadow-lg shadow-black/10 backdrop-blur-md">
-        <div className="container mx-auto grid grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 lg:grid-cols-[1fr_auto_1fr] lg:px-8 lg:py-4">
+        <div className="container mx-auto grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 lg:px-8 min-[1120px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[1120px]:py-4">
           <Link to="/" className="w-fit shrink-0 justify-self-start">
             <EagleLogo />
           </Link>
 
-          <nav aria-label="Navegación principal" className="order-3 col-span-2 flex w-full items-center justify-start gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:order-none lg:col-span-1 lg:justify-self-center lg:overflow-visible lg:pb-0">
+          <nav aria-label="Navegación principal" className="order-3 col-span-2 flex w-full items-center justify-start gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[1120px]:order-none min-[1120px]:col-span-1 min-[1120px]:justify-self-center min-[1120px]:overflow-visible min-[1120px]:pb-0">
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
               {t("nav.home")}
             </NavLink>
@@ -153,7 +156,7 @@ export function Layout() {
             </NavLink>
           </nav>
 
-          <div className="flex min-w-0 items-center justify-end gap-2 lg:gap-3 lg:justify-self-end">
+          <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2 min-[1120px]:justify-self-end xl:gap-3">
             <div className="relative" ref={wishlistRef}>
               <button
                 type="button"
@@ -163,7 +166,8 @@ export function Layout() {
                   setUserOpen(false);
                 }}
                 aria-expanded={wishlistOpen}
-                className="relative inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white/70 transition-colors hover:bg-secondary hover:text-white"
+                aria-label={t("nav.wishlist")}
+                className="relative inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-3 text-sm font-semibold text-white/70 transition-colors hover:bg-secondary hover:text-white sm:px-4"
               >
                 <svg
                   width="18"
@@ -270,6 +274,14 @@ export function Layout() {
                         {formatMoney(fromUsd(wishlistTotal, currency), currency)}
                       </span>
                     </div>
+
+                    <Link
+                      to="/favorites"
+                      onClick={() => setWishlistOpen(false)}
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-white/15 px-3 py-2 text-sm font-bold text-white transition hover:bg-white hover:text-[#0a0f1a]"
+                    >
+                      {t("wishlist.viewAll")}
+                    </Link>
                   </>
                 )}
               </div>
@@ -284,7 +296,7 @@ export function Layout() {
                   setUserOpen(false);
                 }}
                 aria-expanded={cartOpen}
-                className="relative inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white/70 transition-colors hover:bg-secondary hover:text-white"
+                className="relative inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-3 text-sm font-semibold text-white/70 transition-colors hover:bg-secondary hover:text-white sm:px-4"
                 aria-label={t("nav.cart")}
               >
                 <svg
@@ -354,27 +366,42 @@ export function Layout() {
                             </p>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => removeFromCart(line.productId)}
-                            aria-label="Eliminar del carrito"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors hover:bg-accent hover:text-white"
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setQuantity(line.productId, line.quantity - 1)}
+                              disabled={line.quantity <= 1}
+                              aria-label={t("cart.decrease")}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-base font-black text-white transition hover:bg-white hover:text-[#0a0f1a] disabled:cursor-not-allowed disabled:opacity-30"
                             >
-                              <path d="M18 6 6 18" />
-                              <path d="m6 6 12 12" />
-                            </svg>
-                          </button>
+                              −
+                            </button>
+                            <span className="min-w-6 text-center text-xs font-black text-white" aria-label={t("cart.quantity", { count: line.quantity })}>
+                              {line.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setQuantity(line.productId, line.quantity + 1)}
+                              disabled={line.quantity >= line.stock}
+                              aria-label={t("cart.increase")}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-base font-black text-white transition hover:bg-white hover:text-[#0a0f1a] disabled:cursor-not-allowed disabled:opacity-30"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeFromCart(line.productId)}
+                              aria-label={t("cart.removeLine")}
+                              title={t("cart.removeLine")}
+                              className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 text-red-200 transition-colors hover:bg-red-500 hover:text-white"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4h8v2" />
+                                <path d="m19 6-1 14H6L5 6" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -417,20 +444,28 @@ export function Layout() {
             </label>
 
             {!user ? (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/register"
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-black text-[#0a0f1a] transition hover:bg-white"
-                >
-                  {t("auth.register")}
-                </Link>
+              <>
+                <div className="hidden items-center gap-2 sm:flex">
+                  <Link
+                    to="/register"
+                    className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-black text-[#0a0f1a] transition hover:bg-white"
+                  >
+                    {t("auth.register")}
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 bg-white/10 px-4 text-sm font-bold text-white/80 transition hover:bg-white hover:text-[#0a0f1a]"
+                  >
+                    {t("nav.login")}
+                  </Link>
+                </div>
                 <Link
                   to="/login"
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 bg-white/10 px-4 text-sm font-bold text-white/80 transition hover:bg-white hover:text-[#0a0f1a]"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-black text-white sm:hidden"
                 >
-                  {t("nav.login")}
+                  {t("auth.access")}
                 </Link>
-              </div>
+              </>
             ) : null}
 
             {user ? (

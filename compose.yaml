@@ -13,7 +13,7 @@ services:
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: ${POSTGRES_USER:-sprint_app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SprintLocal#2026}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - sprint_postgres_data:/var/lib/postgresql/data
     networks:
@@ -34,7 +34,7 @@ services:
     restart: "no"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sprint_app}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-SprintLocal#2026}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       IDENTITY_DATABASE: ${IDENTITY_DATABASE:-sprint_identity}
       COMMERCE_DATABASE: ${COMMERCE_DATABASE:-sprint_commerce}
     depends_on:
@@ -53,20 +53,23 @@ services:
     image: dpage/pgadmin4:9.17
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sprintclothes.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-SprintPgAdmin#2026}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:?Set PGADMIN_EMAIL in .env}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Set PGADMIN_PASSWORD in .env}
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+      PGADMIN_CONFIG_SESSION_COOKIE_HTTPONLY: "True"
+      PGADMIN_CONFIG_SESSION_COOKIE_SAMESITE: "'Strict'"
       PGADMIN_REPLACE_SERVERS_ON_STARTUP: "True"
       PGADMIN_LISTEN_ADDRESS: 0.0.0.0
       PGADMIN_LISTEN_PORT: 8080
       PGPASS_FILE: /pgadmin4/pgpass
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SprintLocal#2026}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     depends_on:
       database-init:
         condition: service_completed_successfully
     ports:
-      - "${PGADMIN_PORT:-5050}:8080"
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:8080"
     volumes:
       - sprint_pgadmin_data:/var/lib/pgadmin
       - ./infra/pgadmin/servers.json:/pgadmin4/servers.json:ro
@@ -88,16 +91,17 @@ services:
       IDENTITY_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IDENTITY_DATABASE:-sprint_identity}
       COMMERCE_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${COMMERCE_DATABASE:-sprint_commerce}
       DATABASE_USERNAME: ${POSTGRES_USER:-sprint_app}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-SprintLocal#2026}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       IDENTITY_DB_POOL_MAX_SIZE: ${IDENTITY_DB_POOL_MAX_SIZE:-5}
       IDENTITY_DB_POOL_MIN_IDLE: ${IDENTITY_DB_POOL_MIN_IDLE:-1}
       COMMERCE_DB_POOL_MAX_SIZE: ${COMMERCE_DB_POOL_MAX_SIZE:-10}
       COMMERCE_DB_POOL_MIN_IDLE: ${COMMERCE_DB_POOL_MIN_IDLE:-2}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:8088}
       APP_WHATSAPP_BUSINESS_NUMBER: ${APP_WHATSAPP_BUSINESS_NUMBER:-593939051525}
-      AWS_COGNITO_REGION: ${AWS_COGNITO_REGION:-us-east-1}
-      AWS_COGNITO_USER_POOL_ID: ${AWS_COGNITO_USER_POOL_ID:-us-east-1_example}
-      AWS_COGNITO_CLIENT_ID: ${AWS_COGNITO_CLIENT_ID:-exampleclientid}
+      APP_PRODUCT_UPLOAD_DIRECTORY: /app/uploads/products
+      AWS_COGNITO_REGION: ${AWS_COGNITO_REGION:?Set AWS_COGNITO_REGION in .env}
+      AWS_COGNITO_USER_POOL_ID: ${AWS_COGNITO_USER_POOL_ID:?Set AWS_COGNITO_USER_POOL_ID in .env}
+      AWS_COGNITO_CLIENT_ID: ${AWS_COGNITO_CLIENT_ID:?Set AWS_COGNITO_CLIENT_ID in .env}
       AWS_COGNITO_CLIENT_SECRET: ${AWS_COGNITO_CLIENT_SECRET:-}
       JAVA_TOOL_OPTIONS: >-
         -XX:MaxRAMPercentage=75
@@ -108,6 +112,8 @@ services:
         condition: service_completed_successfully
     expose:
       - "8080"
+    volumes:
+      - ./runtime/uploads/products:/app/uploads/products
     networks:
       - application
       - database
@@ -136,7 +142,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${APP_HTTP_PORT:-8088}:8080"
+      - "127.0.0.1:${APP_HTTP_PORT:-8088}:8080"
     networks:
       - application
     healthcheck:

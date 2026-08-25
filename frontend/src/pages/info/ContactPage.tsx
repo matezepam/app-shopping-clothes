@@ -47,7 +47,7 @@ export function ContactPage() {
                                 </p>
 
                                 <p className="mt-3 text-lg font-semibold text-foreground">
-                                    +593 99 999 9999
+                                    0939051525
                                 </p>
                             </div>
 

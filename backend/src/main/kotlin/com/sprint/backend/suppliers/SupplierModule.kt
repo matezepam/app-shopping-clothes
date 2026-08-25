@@ -5,6 +5,8 @@ import com.sprint.backend.products.ProductRepository
 import jakarta.persistence.*
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Size
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
@@ -28,7 +30,14 @@ class Supplier(
 )
 
 interface SupplierRepository : JpaRepository<Supplier, UUID> { fun existsByTaxId(taxId: String): Boolean }
-data class SupplierRequest(@field:NotBlank val name: String, @field:NotBlank val taxId: String, val email: String? = null, val phone: String? = null, val status: String = "ACTIVE", val productIds: Set<String> = emptySet())
+data class SupplierRequest(
+    @field:NotBlank @field:Size(max = 160) val name: String,
+    @field:NotBlank @field:Size(max = 30) val taxId: String,
+    @field:Email @field:Size(max = 150) val email: String? = null,
+    @field:Size(max = 30) val phone: String? = null,
+    @field:Size(max = 20) val status: String = "ACTIVE",
+    @field:Size(max = 100) val productIds: Set<String> = emptySet()
+)
 data class SupplierResponse(val id: UUID, val name: String, val taxId: String, val email: String?, val phone: String?, val status: String, val productIds: Set<String>)
 
 @Service

@@ -71,6 +71,9 @@ class OrderServiceTests(
         service.updateStatus(jwt, order.id, OrderStatusRequest("SHIPPED"))
         service.updateStatus(jwt, order.id, OrderStatusRequest("DELIVERED"))
         val returned = returnService.create(jwt, CreateReturnRequest(order.id.toString(), "test-product", 2, "Talla incorrecta"))
+        assertThrows(IllegalArgumentException::class.java) {
+            returnService.create(jwt, CreateReturnRequest(order.id.toString(), "test-product", 1, "Solicitud duplicada"))
+        }
         returnService.patch(jwt, returned.id, PatchReturnRequest("APPROVED", "Procede"))
         returnService.patch(jwt, returned.id, PatchReturnRequest("RECEIVED", "Producto recibido"))
         assertEquals(5, products.findById("test-product").orElseThrow().stock)

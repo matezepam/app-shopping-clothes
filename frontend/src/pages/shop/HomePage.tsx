@@ -7,39 +7,33 @@ import { formatMoney, fromUsd } from "../../lib/currency";
 
 const productShowcase = [
   {
-    name: "Urban Concept Jacket",
-    concept: "Oversized · Streetwear · Premium fit",
-    price: "$48.99",
-    category: "souvenirs",
+    name: "Camiseta Galápagos Origen",
+    concept: "Algodón suave · Bordado discreto · Corte cómodo",
+    price: "$29.90",
+    category: "men",
     productId: undefined,
     images: [
-      "/images/products/hoodie.svg",
-      "/images/products/tee.svg",
-      "/images/products/cap.svg",
+      "/images/catalog/camiseta-galapagos-negra.png",
     ],
   },
   {
-    name: "Andes Graphic Tee",
-    concept: "Cotton · Minimal print · Daily outfit",
-    price: "$24.99",
-    category: "souvenirs",
+    name: "Hoodie Andes Arena",
+    concept: "Felpa suave · Detalle textil · Abrigo ligero",
+    price: "$54.90",
+    category: "women",
     productId: undefined,
     images: [
-      "/images/products/tee.svg",
-      "/images/products/canvas.svg",
-      "/images/products/poster.svg",
+      "/images/catalog/hoodie-andes-beige.png",
     ],
   },
   {
-    name: "Galápagos Tech Hoodie",
-    concept: "Soft fleece · Relaxed · Modern culture",
-    price: "$39.99",
+    name: "Taza Térmica Ruta de los Andes",
+    concept: "Uso diario · Tapa segura · Ilustración sobria",
+    price: "$26.90",
     category: "souvenirs",
     productId: undefined,
     images: [
-      "/images/products/hoodie.svg",
-      "/images/products/souvenir.svg",
-      "/images/products/cap.svg",
+      "/images/catalog/coleccion-recuerdos-andes.png",
     ],
   },
 ];
@@ -48,35 +42,35 @@ const outfitCards = [
   {
     id: "street",
     href: "/category/men",
-    image: "/images/products/tee.svg",
+    image: "/images/catalog/camiseta-galapagos-negra.png",
   },
   {
     id: "clean",
     href: "/category/women",
-    image: "/images/products/hoodie.svg",
+    image: "/images/catalog/camiseta-quito-vino.png",
   },
   {
     id: "premium",
     href: "/category/souvenirs",
-    image: "/images/products/souvenir.svg",
+    image: "/images/catalog/coleccion-recuerdos-andes.png",
   },
 ];
 
 const conceptImages = [
   [
-    "/images/concepts/galapagos.svg",
-    "/images/hero/galapagos.svg",
-    "/images/products/tee.svg",
+    "/images/catalog/camiseta-galapagos-negra.png",
+    "/images/catalog/gorra-otavalo-azul.png",
+    "/images/catalog/coleccion-recuerdos-andes.png",
   ],
   [
-    "/images/concepts/andes.svg",
-    "/images/hero/andes.svg",
-    "/images/products/hoodie.svg",
+    "/images/catalog/hoodie-andes-beige.png",
+    "/images/catalog/pantalon-cargo-verde.png",
+    "/images/catalog/camiseta-quito-vino.png",
   ],
   [
-    "/images/concepts/quito.svg",
-    "/images/hero/quito.svg",
-    "/images/products/poster.svg",
+    "/images/catalog/camiseta-quito-vino.png",
+    "/images/catalog/coleccion-recuerdos-andes.png",
+    "/images/catalog/gorra-otavalo-azul.png",
   ],
 ];
 
@@ -84,17 +78,17 @@ const seasonCards = [
   {
     id: "summer",
     href: "/category/women",
-    image: "/images/hero/galapagos.svg",
+    image: "/images/catalog/camiseta-quito-vino.png",
   },
   {
     id: "urban",
     href: "/category/men",
-    image: "/images/products/hoodie.svg",
+    image: "/images/catalog/hoodie-andes-beige.png",
   },
   {
     id: "travel",
     href: "/category/souvenirs",
-    image: "/images/products/souvenir.svg",
+    image: "/images/catalog/coleccion-recuerdos-andes.png",
   },
 ];
 
@@ -198,29 +192,69 @@ export function HomePage() {
           .season-shine::after {
             animation: slideShine 4.8s ease-in-out infinite;
           }
+
+          @media (min-width: 1024px) and (max-height: 700px) {
+            .home-hero-grid {
+              gap: 1.5rem !important;
+              padding-top: 1.5rem !important;
+              padding-bottom: 2rem !important;
+            }
+
+            .home-hero-title {
+              margin-top: 1rem !important;
+              font-size: 3rem !important;
+            }
+
+            .home-hero-subtitle,
+            .home-hero-actions {
+              margin-top: 1rem !important;
+            }
+
+            .home-hero-stats {
+              display: none !important;
+            }
+
+            .home-hero-product-card {
+              max-width: 340px !important;
+              padding: .75rem !important;
+            }
+
+            .home-hero-image {
+              height: 215px !important;
+            }
+
+            .home-hero-product-info {
+              margin-top: .75rem !important;
+              padding: 1rem !important;
+            }
+
+            .home-hero-product-description {
+              display: none !important;
+            }
+          }
         `}
       </style>
 
-      <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#090909] text-white shadow-2xl">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#090909] text-white shadow-2xl sm:rounded-[2.5rem]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,.16),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(255,0,80,.25),transparent_30%)]" />
         <div className="absolute left-8 top-8 h-24 w-24 rounded-full border border-white/10" />
         <div className="absolute bottom-10 right-10 h-40 w-40 rounded-full border border-white/10" />
 
-        <div className="relative grid min-h-[640px] gap-10 px-7 py-12 md:grid-cols-2 md:px-14 lg:px-20">
+        <div className="home-hero-grid relative grid gap-10 px-6 py-10 sm:px-10 sm:py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(340px,1.1fr)] lg:px-14 lg:py-14 xl:px-20">
           <div className="flex flex-col justify-center">
             <p className="w-fit rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-white/80 backdrop-blur">
               {t("home.hero.badge")}
             </p>
 
-            <h1 className="mt-7 font-display text-5xl font-black leading-[0.95] md:text-7xl">
+            <h1 className="home-hero-title mt-6 max-w-2xl font-display text-4xl font-black leading-[0.95] sm:text-5xl lg:text-6xl xl:text-7xl">
               {t("home.hero.title")}
             </h1>
 
-            <p className="mt-6 max-w-xl text-base leading-relaxed text-white/70 md:text-lg">
+            <p className="home-hero-subtitle mt-6 max-w-xl text-base leading-relaxed text-white/70 md:text-lg">
               {t("home.hero.subtitle")}
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-4">
+            <div className="home-hero-actions mt-8 flex flex-wrap gap-4">
               <Link
                 to={`/category/${currentProduct.category}`}
                 className="rounded-full bg-white px-8 py-4 text-sm font-black text-black transition hover:-translate-y-1 hover:bg-accent hover:text-white"
@@ -236,9 +270,9 @@ export function HomePage() {
               </a>
             </div>
 
-            <div className="mt-10 grid max-w-lg grid-cols-3 gap-4">
+            <div className="home-hero-stats mt-8 grid max-w-lg grid-cols-1 gap-3 min-[420px]:grid-cols-3 sm:gap-4 lg:mt-10">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                <p className="text-2xl font-black">360°</p>
+                <p className="text-2xl font-black">{catalog.length || "24+"}</p>
                 <p className="mt-1 text-xs text-white/50">{t("home.hero.statAngles")}</p>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
@@ -253,9 +287,9 @@ export function HomePage() {
           </div>
 
           <div className="relative flex items-center justify-center">
-            <div className="absolute left-0 top-12 hidden w-36 rounded-[2rem] border border-white/10 bg-white/10 p-3 backdrop-blur md:block fashion-float">
+            <div className="absolute left-0 top-12 hidden w-36 rounded-[2rem] border border-white/10 bg-white/10 p-3 backdrop-blur xl:block fashion-float">
               <img
-                src={productShowcase[1].images[0]}
+                src="/images/catalog/gorra-otavalo-azul.png"
                 alt=""
                 className="h-44 w-full rounded-[1.5rem] object-cover"
                 onError={(e) => {
@@ -267,14 +301,14 @@ export function HomePage() {
               </p>
             </div>
 
-            <div className="relative z-10 w-full max-w-[390px] rounded-[2.5rem] border border-white/15 bg-white/10 p-5 shadow-2xl backdrop-blur">
+            <div className="home-hero-product-card relative z-10 w-full max-w-[390px] rounded-[2.5rem] border border-white/15 bg-white/10 p-5 shadow-2xl backdrop-blur">
               <div className="relative overflow-hidden rounded-[2rem] bg-[#f4f4f4]">
                 {currentProduct.images.map((img, idx) => (
                   <img
                     key={img}
                     src={img}
                     alt={currentProduct.name}
-                    className={`h-[430px] w-full object-cover transition-all duration-700 ${
+                    className={`home-hero-image h-[320px] w-full object-cover transition-all duration-700 sm:h-[380px] lg:h-[360px] xl:h-[430px] ${
                       idx === activeAngle
                         ? "hero-image-active scale-100 opacity-100"
                         : "absolute inset-0 scale-105 opacity-0"
@@ -290,14 +324,14 @@ export function HomePage() {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-[1.7rem] bg-white p-5 text-black">
+              <div className="home-hero-product-info mt-5 rounded-[1.7rem] bg-white p-5 text-black">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">
                   {t("home.hero.featured")}
                 </p>
                 <h3 className="mt-2 font-display text-2xl font-black">
                   {currentProduct.name}
                 </h3>
-                <p className="mt-2 text-sm font-semibold text-neutral-500">
+                <p className="home-hero-product-description mt-2 text-sm font-semibold text-neutral-500">
                   {currentProduct.concept}
                 </p>
 
@@ -313,9 +347,9 @@ export function HomePage() {
               </div>
             </div>
 
-            <div className="absolute bottom-12 right-0 hidden w-44 rounded-[2rem] border border-white/10 bg-white/10 p-3 backdrop-blur md:block fashion-float">
+            <div className="absolute bottom-12 right-0 hidden w-44 rounded-[2rem] border border-white/10 bg-white/10 p-3 backdrop-blur xl:block fashion-float">
               <img
-                src={productShowcase[2].images[1]}
+                src="/images/catalog/pantalon-cargo-verde.png"
                 alt=""
                 className="h-28 w-full rounded-[1.5rem] object-cover"
                 onError={(e) => {
@@ -557,8 +591,6 @@ export function HomePage() {
 
                 <div className="relative flex flex-col justify-center overflow-hidden p-8 md:p-12">
                   <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent/10 transition duration-500 group-hover:scale-150" />
-                  <div className="absolute -bottom-16 left-10 h-32 w-32 rounded-full border border-black/10" />
-
                   <p className="relative text-xs font-black uppercase tracking-[0.25em] text-accent">
                     {t("home.concepts.editorial")}
                   </p>

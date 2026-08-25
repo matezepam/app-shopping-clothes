@@ -8,6 +8,7 @@ import jakarta.persistence.*
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
@@ -41,7 +42,7 @@ data class InventoryRequest(
     @field:NotBlank val type: String,
     @field:Min(1) val quantity: Int,
     val supplierId: UUID? = null,
-    val reference: String? = null
+    @field:Size(max = 160) val reference: String? = null
 )
 data class InventoryResponse(val id: UUID, val productId: String, val productName: String, val supplierId: UUID?, val type: String, val quantity: Int, val resultingStock: Int, val reference: String?, val createdBy: String, val createdAt: String)
 

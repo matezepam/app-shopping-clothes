@@ -5,20 +5,36 @@ export type Category =
   | "shirts"
   | "hoodies"
   | "caps"
-  | "art";
+  | "art"
+  | "pants"
+  | "bags"
+  | "mugs"
+  | "embroidery";
 
 export type Gender = "male" | "female" | "non_binary" | "prefer_not_to_say";
 
-export type MaleSubcategory = "camisetas" | "gorras" | "bolsos";
+export type MaleSubcategory =
+  | "camisetas"
+  | "sudaderas"
+  | "gorras"
+  | "bolsos"
+  | "pantalones";
 
 export type FemaleSubcategory =
   | "camisetas"
+  | "sudaderas"
   | "gorras"
   | "bolsos"
+  | "pantalones"
   | "bisuteria"
   | "joyas";
 
-export type ProductSubcategory = MaleSubcategory | FemaleSubcategory;
+export type ProductSubcategory =
+  | MaleSubcategory
+  | FemaleSubcategory
+  | "recuadros"
+  | "tazas"
+  | "bordados";
 
 export type ProductColor =
   | "negro"
@@ -111,4 +127,5 @@ export interface ReturnRequest {
   reason: string;
   status: ReturnStatus;
   createdAt: string;
+  adminNote?: string | null;
 }
