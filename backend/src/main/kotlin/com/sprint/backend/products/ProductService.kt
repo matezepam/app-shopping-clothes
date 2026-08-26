@@ -7,23 +7,26 @@ import com.sprint.backend.config.NotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.text.Normalizer
+import java.util.UUID
 
 @Service
 class ProductService(
     private val productRepository: ProductRepository
 ) {
     fun listPublic(): List<ProductResponse> {
-        return productRepository.findAllByStatusAndModerationStatusOrderByCreatedAtDesc("active", "APPROVED").map { it.toResponse() }
+        return productRepository
+            .findAllByStatusAndModerationStatusAndStockGreaterThanOrderByCreatedAtDesc("active", "APPROVED", 0)
+            .map { it.toResponse() }
     }
 
     fun listAdmin(): List<ProductResponse> {
-        return productRepository.findAll().sortedByDescending { it.createdAt }.map { it.toResponse() }
+        return productRepository.findAll().sortedByDescending { it.updatedAt }.map { it.toResponse() }
     }
 
     fun getPublic(id: String): ProductResponse {
         val product = productRepository.findById(id).orElseThrow { NotFoundException("Producto no encontrado") }
 
-        if (product.status != "active" || product.moderationStatus != "APPROVED") {
+        if (product.status != "active" || product.moderationStatus != "APPROVED" || product.stock <= 0) {
             throw NotFoundException("Producto no disponible")
         }
 
@@ -40,11 +43,13 @@ class ProductService(
             throw ConflictException("Ya existe un producto con ese identificador")
         }
 
-        if (productRepository.existsBySku(normalizeSku(request.sku))) {
+        val sku = request.sku.trim().takeIf { it.isNotBlank() }?.let(::normalizeSku)
+            ?: generateUniqueSku(request.category, request.name)
+        if (productRepository.existsBySku(sku)) {
             throw ConflictException("Ya existe un producto con ese SKU")
         }
 
-        return productRepository.save(request.toProduct(id)).toResponse()
+        return productRepository.save(request.toProduct(id, sku)).toResponse()
     }
 
     @Transactional
@@ -54,11 +59,6 @@ class ProductService(
             IllegalArgumentException("Producto no encontrado")
         }
 
-        productRepository.findBySku(normalizeSku(request.sku))?.let {
-            if (it.id != id) throw ConflictException("Ya existe un producto con ese SKU")
-        }
-
-        product.sku = normalizeSku(request.sku)
         product.name = request.name.trim()
         product.collection = normalizeCollection(request.collection)
         product.category = request.category.trim()
@@ -81,16 +81,23 @@ class ProductService(
     }
 
     @Transactional
-    fun delete(id: String) {
-        val product = productRepository.findById(id).orElseThrow { IllegalArgumentException("Producto no encontrado") }
-        product.status = "disabled"
-        productRepository.save(product)
+    fun updateStatus(id: String, requestedStatus: String): ProductResponse {
+        val product = productRepository.findById(id).orElseThrow { NotFoundException("Producto no encontrado") }
+        require(product.moderationStatus == "APPROVED") {
+            "El producto debe estar aprobado antes de cambiar su disponibilidad"
+        }
+        val status = requestedStatus.trim().lowercase()
+        require(status in setOf("active", "hidden", "disabled")) {
+            "El estado debe ser active, hidden o disabled"
+        }
+        product.status = status
+        return productRepository.save(product).toResponse()
     }
 
-    private fun ProductRequest.toProduct(id: String): Product {
+    private fun ProductRequest.toProduct(id: String, generatedSku: String): Product {
         return Product(
             id = id,
-            sku = normalizeSku(sku),
+            sku = generatedSku,
             name = name.trim(),
             collection = normalizeCollection(collection),
             category = category.trim(),
@@ -133,7 +140,8 @@ class ProductService(
             status = status,
             moderationStatus = moderationStatus,
             moderationNote = moderationNote,
-            createdAt = createdAt.toString()
+            createdAt = createdAt.toString(),
+            updatedAt = updatedAt.toString()
         )
     }
 
@@ -147,7 +155,7 @@ class ProductService(
     }
 
     private fun normalizeStatus(value: String): String {
-        return if (value.trim().lowercase() in setOf("active", "draft", "disabled")) {
+        return if (value.trim().lowercase() in setOf("active", "draft", "hidden", "disabled")) {
             value.trim().lowercase()
         } else {
             "active"
@@ -181,7 +189,7 @@ class ProductService(
         require(subcategory in allowedSubcategories) {
             "La subcategoría no corresponde a la colección seleccionada"
         }
-        require(status in setOf("active", "draft", "disabled")) {
+        require(status in setOf("active", "draft", "hidden", "disabled")) {
             "El estado del producto no es válido"
         }
         require(gender in setOf("male", "female")) {
@@ -233,6 +241,33 @@ class ProductService(
     }
 
     private fun normalizeSku(value: String) = value.trim().uppercase()
+
+    private fun generateUniqueSku(category: String, name: String): String {
+        val categoryCode = when (category.trim().lowercase()) {
+            "shirts" -> "CAM"
+            "hoodies" -> "SUD"
+            "caps" -> "GOR"
+            "pants" -> "PAN"
+            "bags" -> "BOL"
+            "mugs" -> "TAZ"
+            "embroidery" -> "BOR"
+            "art" -> "ART"
+            else -> "PRO"
+        }
+        val words = slugify(name).split("-").filter { it.isNotBlank() }
+        val titleCode = words
+            .filterNot { it in setOf("camiseta", "hoodie", "gorra", "pantalon", "bolso", "taza", "bordado") }
+            .take(2)
+            .joinToString("-") { it.take(3).uppercase() }
+            .ifBlank { words.take(2).joinToString("-") { it.take(3).uppercase() } }
+
+        repeat(20) {
+            val suffix = UUID.randomUUID().toString().replace("-", "").take(4).uppercase()
+            val candidate = "$categoryCode-$titleCode-$suffix"
+            if (!productRepository.existsBySku(candidate)) return candidate
+        }
+        throw IllegalStateException("No se pudo generar un SKU único")
+    }
 
     private fun isAllowedImagePath(value: String): Boolean {
         val normalized = value.lowercase()

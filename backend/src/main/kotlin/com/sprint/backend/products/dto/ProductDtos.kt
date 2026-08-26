@@ -29,16 +29,16 @@ data class ProductResponse(
     val status: String,
     val moderationStatus: String,
     val moderationNote: String?,
-    val createdAt: String
+    val createdAt: String,
+    val updatedAt: String
 )
 
 data class ProductRequest(
     @field:Size(max = 120)
     val id: String? = null,
 
-    @field:NotBlank
     @field:Size(max = 80)
-    @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$")
+    @field:Pattern(regexp = "^$|^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$")
     val sku: String,
 
     @field:NotBlank
@@ -96,4 +96,10 @@ data class ProductRequest(
 
     @field:Size(max = 20)
     val status: String = "active"
+)
+
+data class ProductStatusRequest(
+    @field:NotBlank
+    @field:Size(max = 20)
+    val status: String
 )

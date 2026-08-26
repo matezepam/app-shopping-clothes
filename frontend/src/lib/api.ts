@@ -49,7 +49,10 @@ export const api = {
   adminProducts: (token: string) => request<{ products: Product[] }>("/api/products/admin", { token }),
   createProduct: (token: string, body: ProductPayload) => request<{ product: Product }>("/api/products/admin", { method: "POST", token, body: JSON.stringify(body) }),
   updateProduct: (token: string, id: string, body: ProductPayload) => request<{ product: Product }>(`/api/products/admin/${encodeURIComponent(id)}`, { method: "PUT", token, body: JSON.stringify(body) }),
-  deleteProduct: (token: string, id: string) => request<void>(`/api/products/admin/${encodeURIComponent(id)}`, { method: "DELETE", token }),
+  updateProductStatus: (token: string, id: string, status: "active" | "hidden" | "disabled") => request<{ product: Product }>(`/api/products/admin/${encodeURIComponent(id)}/status`, { method: "PATCH", token, body: JSON.stringify({ status }) }),
+  productDeletionRequests: (token: string) => request<{ requests: ProductDeletionRow[] }>("/api/admin/product-deletions", { token }),
+  requestProductDeletion: (token: string, id: string, reason: string) => request<{ request: ProductDeletionRow }>(`/api/admin/product-deletions/${encodeURIComponent(id)}`, { method: "POST", token, body: JSON.stringify({ reason }) }),
+  resolveProductDeletion: (token: string, id: string, decision: "APPROVED" | "REJECTED", note?: string) => request<{ request: ProductDeletionRow }>(`/api/admin/product-deletions/${encodeURIComponent(id)}`, { method: "PATCH", token, body: JSON.stringify({ decision, note }) }),
   uploadProductImages: (token: string, files: File[]) => {
     const form = new FormData();
     files.forEach((file) => form.append("images", file));
@@ -83,11 +86,16 @@ export const api = {
   categories: () => request<{ categories: CategoryRow[] }>("/api/categories"),
   adminCategories: (token: string) => request<{ categories: CategoryRow[] }>("/api/categories/admin", { token }),
   createCategory: (token: string, body: { name: string; parentId?: number | null; active?: boolean }) => request<{ category: CategoryRow }>("/api/categories/admin", { method: "POST", token, body: JSON.stringify(body) }),
+  updateCategory: (token: string, id: number, body: { name: string; parentId?: number | null; active?: boolean }) => request<{ category: CategoryRow }>(`/api/categories/admin/${id}`, { method: "PUT", token, body: JSON.stringify(body) }),
+  deleteCategory: (token: string, id: number) => request<void>(`/api/categories/admin/${id}`, { method: "DELETE", token }),
   suppliers: (token: string) => request<{ suppliers: SupplierRow[] }>("/api/admin/suppliers", { token }),
   createSupplier: (token: string, body: Omit<SupplierRow, "id">) => request<{ supplier: SupplierRow }>("/api/admin/suppliers", { method: "POST", token, body: JSON.stringify(body) }),
+  updateSupplier: (token: string, id: string, body: Omit<SupplierRow, "id">) => request<{ supplier: SupplierRow }>(`/api/admin/suppliers/${id}`, { method: "PUT", token, body: JSON.stringify(body) }),
+  deleteSupplier: (token: string, id: string) => request<void>(`/api/admin/suppliers/${id}`, { method: "DELETE", token }),
   inventory: (token: string) => request<{ movements: InventoryRow[] }>("/api/admin/inventory", { token }),
   inventoryMovement: (token: string, body: { productId: string; type: string; quantity: number; supplierId?: string; reference?: string }) => request<{ movement: InventoryRow }>("/api/admin/inventory", { method: "POST", token, body: JSON.stringify(body) }),
   moderation: (token: string) => request<{ products: ModerationRow[] }>("/api/admin/moderation", { token }),
+  moderationHistory: (token: string) => request<{ products: ModerationRow[] }>("/api/admin/moderation/history", { token }),
   moderate: (token: string, productId: string, decision: string, note?: string) => request<{ product: ModerationRow }>(`/api/admin/moderation/${encodeURIComponent(productId)}`, { method: "PATCH", token, body: JSON.stringify({ decision, note }) }),
   customers: (token: string) => request<{ customers: CustomerRow[] }>("/api/admin/customers", { token }),
   customerStatus: (token: string, id: number, enabled: boolean) => request<{ customer: CustomerRow }>(`/api/admin/customers/${id}`, { method: "PATCH", token, body: JSON.stringify({ enabled }) }),
@@ -96,11 +104,13 @@ export const api = {
 export interface AuthTokens { token: string; tokenType: string; refreshToken?: string; expiresIn?: number; }
 export interface RegistrationResponse { email: string; confirmed: boolean; delivery?: string | null; }
 export interface RegisterPayload { firstName: string; lastName: string; email: string; password: string; phone: string; country: string; gender: string; birthDate: string; age: number; }
-export interface AdminStats { summary: { ordersCount: number; revenueUsd: number; unitsSold: number; returnsPending: number; lowStockProducts: number }; topProducts: { productId: string; name: string; unitsSold: number; revenueUsd: number }[]; revenueByDay: { day: string; revenueUsd: number }[]; }
+export interface ProductSalesRow { productId: string; name: string; sku: string; collection: string; image: string; unitsSold: number; revenueUsd: number; currentStock: number; }
+export interface AdminStats { summary: { ordersCount: number; revenueUsd: number; unitsSold: number; returnsPending: number; lowStockProducts: number }; topProducts: ProductSalesRow[]; lowProducts: ProductSalesRow[]; revenueByDay: { day: string; revenueUsd: number }[]; }
 export interface AdminReturnRow { id: string; orderId: string; productId: string; quantity: number; reason: string; status: string; createdAt: string; adminNote: string | null; userEmail: string; }
 export interface CategoryRow { id: number; name: string; slug: string; parentId: number | null; active: boolean; }
 export interface SupplierRow { id: string; name: string; taxId: string; email?: string | null; phone?: string | null; status: string; productIds: string[] | Set<string>; }
 export interface InventoryRow { id: string; productId: string; productName: string; supplierId?: string | null; type: string; quantity: number; resultingStock: number; reference?: string | null; createdBy: string; createdAt: string; }
 export interface ModerationRow { productId: string; name: string; sku: string; status: string; note?: string | null; moderatedBy?: string | null; moderatedAt?: string | null; }
+export interface ProductDeletionRow { id: string; productId: string; productName: string; productSku: string; previousStatus: string; requestedBy: string; reason: string; status: "PENDING" | "APPROVED" | "REJECTED"; moderatorNote?: string | null; createdAt: string; resolvedAt?: string | null; canDeletePermanently: boolean; blockers: string[]; }
 export interface CustomerRow { id: number; cognitoSub?: string | null; firstName: string; lastName: string; email: string; phone?: string | null; country?: string | null; preferredLanguage: string; enabled: boolean; createdAt: string; }
 export type ProductPayload = { id?: string; sku: string; name: string; collection: string; category: string; subcategory: string; concept: string; priceUsd: number; compareAtPriceUsd?: number | null; image: string; images: string[]; description?: string | null; story?: string | null; gender: string; color: string; sizes: string[]; stock: number; status: string; };

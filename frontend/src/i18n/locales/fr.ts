@@ -473,6 +473,7 @@ export const fr = {
       all: "Tous",
       active: "Actif",
       draft: "Brouillon",
+      hidden: "Masqué",
       disabled: "Désactivé",
     },
     table: {

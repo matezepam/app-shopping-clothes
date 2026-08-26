@@ -2,6 +2,8 @@ package com.sprint.backend.config
 
 import com.sprint.backend.admin.ModerationHistory
 import com.sprint.backend.admin.ModerationHistoryRepository
+import com.sprint.backend.admin.ProductDeletionRequest
+import com.sprint.backend.admin.ProductDeletionRequestRepository
 import com.sprint.backend.audit.ActivityLog
 import com.sprint.backend.audit.ActivityLogRepository
 import com.sprint.backend.categories.Category
@@ -10,6 +12,7 @@ import com.sprint.backend.inventory.InventoryMovement
 import com.sprint.backend.inventory.InventoryMovementRepository
 import com.sprint.backend.orders.Order
 import com.sprint.backend.orders.OrderRepository
+import com.sprint.backend.orders.OrderItemRepository
 import com.sprint.backend.products.Product
 import com.sprint.backend.products.ProductRepository
 import com.sprint.backend.returns.ReturnRequestEntity
@@ -94,8 +97,10 @@ class IdentityDatabaseConfig {
         SupplierRepository::class,
         InventoryMovementRepository::class,
         OrderRepository::class,
+        OrderItemRepository::class,
         ReturnRequestRepository::class,
         ModerationHistoryRepository::class,
+        ProductDeletionRequestRepository::class,
         ActivityLogRepository::class
     ],
     entityManagerFactoryRef = "commerceEntityManagerFactory",
@@ -143,6 +148,7 @@ class CommerceDatabaseConfig {
             Order::class.java,
             ReturnRequestEntity::class.java,
             ModerationHistory::class.java,
+            ProductDeletionRequest::class.java,
             ActivityLog::class.java
         )
         .persistenceUnit("commerce")

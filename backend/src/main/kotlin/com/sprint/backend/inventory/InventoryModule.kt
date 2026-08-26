@@ -35,6 +35,8 @@ class InventoryMovement(
 
 interface InventoryMovementRepository : JpaRepository<InventoryMovement, UUID> {
     fun findAllByOrderByCreatedAtDesc(): List<InventoryMovement>
+    fun existsByProductId(productId: String): Boolean
+    fun existsBySupplierId(supplierId: UUID): Boolean
 }
 
 data class InventoryRequest(
@@ -54,6 +56,9 @@ class InventoryService(private val products: ProductRepository, private val supp
     @Transactional
     fun register(jwt: Jwt, r: InventoryRequest): InventoryResponse {
         val product = products.findByIdForUpdate(r.productId).orElseThrow { IllegalArgumentException("Producto no encontrado") }
+        require(product.status != "disabled" && product.moderationStatus == "APPROVED") {
+            "El producto debe estar aprobado y habilitado antes de registrar inventario"
+        }
         val type = r.type.uppercase()
         require(type in setOf("ENTRY", "EXIT", "ADJUSTMENT")) { "Tipo de movimiento no permitido" }
         val delta = if (type == "ENTRY") r.quantity else -r.quantity

@@ -67,6 +67,10 @@ interface OrderRepository : JpaRepository<Order, UUID> {
     fun findAllByOrderByCreatedAtDesc(): List<Order>
 }
 
+interface OrderItemRepository : JpaRepository<OrderItem, Long> {
+    fun existsByProductId(productId: String): Boolean
+}
+
 interface OrderStatusHistoryRepository : JpaRepository<OrderStatusHistory, UUID> {
     fun findAllByOrderIdOrderByCreatedAtAsc(orderId: UUID): List<OrderStatusHistory>
 }

@@ -20,9 +20,23 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 data class AdminSummary(val ordersCount: Int, val revenueUsd: BigDecimal, val unitsSold: Int, val returnsPending: Long, val lowStockProducts: Long)
-data class TopProduct(val productId: String, val name: String, val unitsSold: Int, val revenueUsd: BigDecimal)
+data class ProductSalesRow(
+    val productId: String,
+    val name: String,
+    val sku: String,
+    val collection: String,
+    val image: String,
+    val unitsSold: Int,
+    val revenueUsd: BigDecimal,
+    val currentStock: Int
+)
 data class RevenueDay(val day: String, val revenueUsd: BigDecimal)
-data class AdminStatsResponse(val summary: AdminSummary, val topProducts: List<TopProduct>, val revenueByDay: List<RevenueDay>)
+data class AdminStatsResponse(
+    val summary: AdminSummary,
+    val topProducts: List<ProductSalesRow>,
+    val lowProducts: List<ProductSalesRow>,
+    val revenueByDay: List<RevenueDay>
+)
 data class ModerationRequest(@field:NotBlank val decision: String, @field:Size(max = 500) val note: String? = null)
 data class ModerationRow(val productId: String, val name: String, val sku: String, val status: String, val note: String?, val moderatedBy: String?, val moderatedAt: String?)
 
@@ -30,7 +44,9 @@ data class ModerationRow(val productId: String, val name: String, val sku: Strin
 @Table(name = "moderation_history", schema = "audit")
 class ModerationHistory(
     @Id val id: UUID = UUID.randomUUID(),
-    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "product_id", nullable = false) val product: Product,
+    @Column(name = "product_id", nullable = false, length = 120) val productId: String,
+    @Column(name = "product_name", nullable = false, length = 160) val productName: String,
+    @Column(name = "product_sku", nullable = false, length = 80) val productSku: String,
     @Column(name = "moderator_identity_user_id") val moderatorIdentityUserId: Long? = null,
     @Column(name = "moderator_sub", nullable = false, length = 80) val moderatorSub: String,
     @Column(nullable = false, length = 20) val decision: String,
@@ -54,27 +70,42 @@ class AdminService(
     fun stats(): AdminStatsResponse {
         val commercialOrders = orders.findAll().filter { it.status !in setOf("CANCELLED", "PENDING_WHATSAPP") }
         val items = commercialOrders.flatMap { it.items }
-        val top = items.groupBy { it.product.id }.map { (id, lines) ->
-            TopProduct(id, lines.first().productName, lines.sumOf { it.quantity }, lines.fold(BigDecimal.ZERO) { acc, line -> acc + line.subtotalUsd })
-        }.sortedByDescending { it.unitsSold }.take(5)
+        val salesByProduct = items.groupBy { it.product.id }
+        val productSales = products.findAll()
+            .filter { it.moderationStatus == "APPROVED" && it.status != "disabled" }
+            .map { product ->
+                val lines = salesByProduct[product.id].orEmpty()
+                ProductSalesRow(
+                    product.id,
+                    product.name,
+                    product.sku,
+                    product.collection,
+                    product.image,
+                    lines.sumOf { it.quantity },
+                    lines.fold(BigDecimal.ZERO) { acc, line -> acc + line.subtotalUsd },
+                    product.stock
+                )
+            }
+        val top = productSales.sortedWith(compareByDescending<ProductSalesRow> { it.unitsSold }.thenByDescending { it.revenueUsd }).take(5)
+        val low = productSales.sortedWith(compareBy<ProductSalesRow> { it.unitsSold }.thenBy { it.revenueUsd }.thenBy { it.name }).take(5)
         val byDay = commercialOrders.groupBy { it.createdAt.toLocalDate().toString() }.map { (day, list) ->
             RevenueDay(day, list.fold(BigDecimal.ZERO) { acc, order -> acc + order.totalUsd })
         }.sortedBy { it.day }
         return AdminStatsResponse(
             AdminSummary(commercialOrders.size, commercialOrders.fold(BigDecimal.ZERO) { acc, o -> acc + o.totalUsd }, items.sumOf { it.quantity }, returns.countByStatus("REQUESTED"), products.findAll().count { it.stock <= 5 }.toLong()),
-            top, byDay
+            top, low, byDay
         )
     }
 
     @Transactional(readOnly = true)
-    fun moderationQueue() = products.findAll().filter { it.moderationStatus != "APPROVED" }.sortedByDescending { it.createdAt }.map { it.moderationRow() }
+    fun moderationQueue() = products.findAll().filter { it.moderationStatus == "PENDING" }.sortedByDescending { it.createdAt }.map { it.moderationRow() }
 
     @Transactional(readOnly = true)
     fun moderationHistory() = moderationEvents.findAllByOrderByCreatedAtDesc().map { event ->
         ModerationRow(
-            event.product.id,
-            event.product.name,
-            event.product.sku,
+            event.productId,
+            event.productName,
+            event.productSku,
             event.decision,
             event.note,
             event.moderatorSub,
@@ -93,7 +124,9 @@ class AdminService(
         products.save(product)
         moderationEvents.save(
             ModerationHistory(
-                product = product,
+                productId = product.id,
+                productName = product.name,
+                productSku = product.sku,
                 moderatorIdentityUserId = users.findByCognitoSub(jwt.subject)?.id,
                 moderatorSub = jwt.subject,
                 decision = decision,

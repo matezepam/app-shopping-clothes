@@ -40,6 +40,7 @@ interface ReturnRequestRepository : JpaRepository<ReturnRequestEntity, UUID> {
     fun findAllByOrderUserSubOrderByCreatedAtDesc(userSub: String): List<ReturnRequestEntity>
     fun findAllByOrderByCreatedAtDesc(): List<ReturnRequestEntity>
     fun findAllByOrderIdAndProductId(orderId: UUID, productId: String): List<ReturnRequestEntity>
+    fun existsByProductId(productId: String): Boolean
     fun countByStatus(status: String): Long
 }
 
