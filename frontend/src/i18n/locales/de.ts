@@ -473,6 +473,7 @@ export const de = {
       all: "Alle",
       active: "Aktiv",
       draft: "Entwurf",
+      hidden: "Ausgeblendet",
       disabled: "Deaktiviert",
     },
     table: {

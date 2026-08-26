@@ -1,25 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Edit3,
   Eye,
+  EyeOff,
+  Lightbulb,
   Loader2,
   Package,
   Plus,
+  Power,
+  PowerOff,
   Save,
   Search,
   Send,
   ShieldCheck,
   ShoppingBag,
+  TrendingDown,
+  TrendingUp,
   Trash2,
   Upload,
   X,
 } from "lucide-react";
-import { api, type ProductPayload } from "../../lib/api";
+import { api, type AdminStats, type ProductDeletionRow, type ProductPayload } from "../../lib/api";
 import { formatMoney } from "../../lib/currency";
 import { useStore } from "../../context/StoreContext";
 import type { Product } from "../../types/store";
@@ -111,16 +120,23 @@ export function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [collection, setCollection] = useState("men");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [formStep, setFormStep] = useState<"edit" | "preview">("edit");
   const [form, setForm] = useState<ProductPayload>(emptyForm);
   const [imagesText, setImagesText] = useState("");
+  const [formImageIndex, setFormImageIndex] = useState(0);
   const [sizesText, setSizesText] = useState("S, M, L");
   const [message, setMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [busyProductAction, setBusyProductAction] = useState<string | null>(null);
+  const [deletionRequests, setDeletionRequests] = useState<ProductDeletionRow[]>([]);
+  const [deletionProduct, setDeletionProduct] = useState<Product | null>(null);
+  const [deletionReason, setDeletionReason] = useState("");
+  const [salesStats, setSalesStats] = useState<AdminStats | null>(null);
 
   const isAdmin = user?.roles?.includes("ADMIN") ?? false;
   const canManageProducts = user?.roles?.some((role) => role === "ADMIN" || role === "VENDOR") ?? false;
@@ -128,18 +144,24 @@ export function AdminPage() {
 
   const loadProducts = async () => {
     if (!token || !canViewProducts) return;
-    const { products: nextProducts } = await api.adminProducts(token);
+    const [{ products: nextProducts }, { requests }, nextSalesStats] = await Promise.all([
+      api.adminProducts(token),
+      api.productDeletionRequests(token),
+      isAdmin ? api.adminStats(token) : Promise.resolve(null),
+    ]);
     setProducts(nextProducts);
+    setDeletionRequests(requests);
+    setSalesStats(nextSalesStats);
   };
 
   useEffect(() => {
     void loadProducts();
-  }, [token, canViewProducts]);
+  }, [token, canViewProducts, isAdmin]);
 
   const stats = useMemo(() => {
     return {
       active: products.filter(
-        (product) => product.status === "active" && product.moderationStatus === "APPROVED",
+        (product) => product.status === "active" && product.moderationStatus === "APPROVED" && (product.stock ?? 0) > 0,
       ).length,
       pending: products.filter((product) => product.moderationStatus === "PENDING").length,
       stock: products.reduce((sum, product) => sum + (product.stock ?? 0), 0),
@@ -158,15 +180,47 @@ export function AdminPage() {
         product.name.toLowerCase().includes(query) ||
         product.id.toLowerCase().includes(query) ||
         (product.sku ?? "").toLowerCase().includes(query);
-      const matchesStatus = status === "all" || product.status === status;
-      return matchesSearch && matchesStatus;
+      const matchesCollection = collection === "all" || (product.collection ?? product.category) === collection;
+      const matchesStatus = status === "all"
+        || (status === "pending" && product.moderationStatus === "PENDING")
+        || (status === "observed" && product.moderationStatus === "OBSERVED")
+        || (status === "approved" && product.moderationStatus === "APPROVED")
+        || (status === "rejected" && product.moderationStatus === "REJECTED")
+        || product.status === status;
+      return matchesSearch && matchesCollection && matchesStatus;
     });
-  }, [products, search, status]);
+  }, [products, search, status, collection]);
+
+  const pendingDeletionIds = useMemo(
+    () => new Set(deletionRequests.filter((request) => request.status === "PENDING").map((request) => request.productId)),
+    [deletionRequests],
+  );
+
+  const editingProduct = useMemo(
+    () => products.find((product) => product.id === editingId) ?? null,
+    [products, editingId],
+  );
+
+  const formImages = useMemo(
+    () => textToList(imagesText).slice(0, 4),
+    [imagesText],
+  );
+
+  const salesReport = useMemo(() => {
+    if (!salesStats) return null;
+    const maxUnits = Math.max(1, ...salesStats.topProducts.map((product) => product.unitsSold));
+    const recentRevenue = salesStats.revenueByDay.slice(-10);
+    const maxDailyRevenue = Math.max(1, ...recentRevenue.map((day) => Number(day.revenueUsd)));
+    const zeroSales = salesStats.lowProducts.filter((product) => product.unitsSold === 0).length;
+    const restock = salesStats.topProducts.filter((product) => product.currentStock <= 8);
+    return { maxUnits, recentRevenue, maxDailyRevenue, zeroSales, restock };
+  }, [salesStats]);
 
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
     setImagesText(emptyForm.image);
+    setFormImageIndex(0);
     setSizesText("S, M, L");
     setFormStep("edit");
     setFormError("");
@@ -178,6 +232,7 @@ export function AdminPage() {
     setEditingId(product.id);
     setForm(nextForm);
     setImagesText(listToText(nextForm.images));
+    setFormImageIndex(0);
     setSizesText(listToText(nextForm.sizes));
     setFormStep("edit");
     setFormError("");
@@ -188,6 +243,7 @@ export function AdminPage() {
     setFormOpen(false);
     setEditingId(null);
     setForm(emptyForm);
+    setFormImageIndex(0);
     setFormStep("edit");
     setFormError("");
   };
@@ -205,8 +261,9 @@ export function AdminPage() {
   });
 
   const validateForm = () => {
-    if (!form.name.trim() || !form.sku.trim()) return "Completa el nombre y el SKU.";
+    if (!form.name.trim()) return "Completa el nombre del producto.";
     if (!form.image.trim()) return "Agrega una imagen principal válida.";
+    if (formImages.length !== 4) return "Agrega exactamente 4 imágenes: portada, posterior, detalle y producto completo.";
     if (Number(form.priceUsd) <= 0) return "El precio debe ser mayor que cero.";
     if (
       form.compareAtPriceUsd &&
@@ -269,6 +326,11 @@ export function AdminPage() {
       setFormError("Puedes seleccionar hasta 4 imágenes por producto.");
       return;
     }
+    const currentUrls = textToList(imagesText).filter((url) => url !== emptyForm.image);
+    if (currentUrls.length + selected.length > 4) {
+      setFormError(`Ya tienes ${currentUrls.length} imágenes. Quita alguna antes de agregar ${selected.length} más.`);
+      return;
+    }
     const invalid = selected.find((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024);
     if (invalid) {
       setFormError("Usa imágenes JPG, PNG o WebP de máximo 2 MB cada una.");
@@ -279,10 +341,10 @@ export function AdminPage() {
     try {
       const result = await api.uploadProductImages(token, selected);
       const uploadedUrls = result.images.map((image) => image.url);
-      const currentUrls = textToList(imagesText).filter((url) => url !== emptyForm.image);
       const merged = [...new Set([...currentUrls, ...uploadedUrls])].slice(0, 4);
       setImagesText(merged.join(", "));
-      setForm((current) => ({ ...current, image: uploadedUrls[0] ?? current.image, images: merged }));
+      setForm((current) => ({ ...current, image: merged[0] ?? current.image, images: merged }));
+      setFormImageIndex(Math.min(formImageIndex, Math.max(merged.length - 1, 0)));
       setMessage(`${uploadedUrls.length} imagen${uploadedUrls.length === 1 ? "" : "es"} cargada${uploadedUrls.length === 1 ? "" : "s"} correctamente.`);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "No se pudieron cargar las imágenes.");
@@ -326,21 +388,75 @@ export function AdminPage() {
     }
   };
 
-  const deleteProduct = async (id: string) => {
-    if (!token || !window.confirm(t("adminProducts.confirmDelete"))) return;
-    await api.deleteProduct(token, id);
-    await loadProducts();
-    await refreshProducts();
+  const changeProductStatus = async (
+    product: Product,
+    nextStatus: "active" | "hidden" | "disabled",
+  ) => {
+    if (!token || !canManageProducts) return;
+    if (product.moderationStatus !== "APPROVED") {
+      setMessage("Primero debe aprobar el producto un moderador.");
+      return;
+    }
+    const actionKey = `${product.id}-${nextStatus}`;
+    setBusyProductAction(actionKey);
+    setMessage("");
+    try {
+      const { product: updated } = await api.updateProductStatus(token, product.id, nextStatus);
+      setProducts((current) => current.map((item) => item.id === product.id ? updated : item));
+      await refreshProducts();
+      setMessage(
+        nextStatus === "active"
+          ? (updated.stock ?? 0) > 0
+            ? "Producto activado y visible en el catálogo."
+            : "Producto activado. Se publicará automáticamente cuando registres stock."
+          : nextStatus === "hidden"
+            ? "Producto oculto del catálogo. Sus datos y existencias se conservaron."
+            : "Producto desactivado. No admite ventas ni movimientos de inventario.",
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo cambiar el estado del producto.");
+    } finally {
+      setBusyProductAction(null);
+    }
   };
 
-  const toggleProductStatus = async (product: Product) => {
-    if (!token || !canManageProducts) return;
-    await api.updateProduct(token, product.id, {
-      ...toForm(product),
-      status: product.status === "active" ? "disabled" : "active",
-    });
-    await loadProducts();
-    await refreshProducts();
+  const updateFormImages = (nextImages: string[], nextIndex = 0) => {
+    const normalized = [...new Set(nextImages.map((image) => image.trim()).filter(Boolean))].slice(0, 4);
+    setImagesText(normalized.join(", "));
+    setForm((current) => ({ ...current, image: normalized[0] ?? "", images: normalized }));
+    setFormImageIndex(Math.min(Math.max(nextIndex, 0), Math.max(normalized.length - 1, 0)));
+  };
+
+  const moveFormImage = (from: number, to: number) => {
+    if (to < 0 || to >= formImages.length) return;
+    const next = [...formImages];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    updateFormImages(next, to);
+  };
+
+  const removeFormImage = (index: number) => {
+    updateFormImages(formImages.filter((_, current) => current !== index), Math.max(index - 1, 0));
+  };
+
+  const requestPermanentDeletion = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!token || !deletionProduct || deletionReason.trim().length < 20) return;
+    const actionKey = `${deletionProduct.id}-delete-request`;
+    setBusyProductAction(actionKey);
+    setMessage("");
+    try {
+      await api.requestProductDeletion(token, deletionProduct.id, deletionReason.trim());
+      setDeletionProduct(null);
+      setDeletionReason("");
+      await loadProducts();
+      await refreshProducts();
+      setMessage("Solicitud enviada. El producto quedó oculto mientras el moderador revisa la eliminación definitiva.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo enviar la solicitud de eliminación.");
+    } finally {
+      setBusyProductAction(null);
+    }
   };
 
   if (!user || !canViewProducts) {
@@ -430,7 +546,7 @@ export function AdminPage() {
               {t("adminProducts.table.subtitle")}
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
             <label className="flex items-center gap-3 rounded-2xl border border-neutral-200 px-4 py-3">
               <Search size={18} className="text-neutral-400" />
               <input
@@ -441,104 +557,163 @@ export function AdminPage() {
               />
             </label>
             <select
+              aria-label="Filtrar por sección"
+              value={collection}
+              onChange={(event) => setCollection(event.target.value)}
+              className="rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-bold outline-none"
+            >
+              <option value="men">{t("categories.men")}</option>
+              <option value="women">{t("categories.women")}</option>
+              <option value="souvenirs">{t("categories.souvenirs")}</option>
+              <option value="all">Todas las secciones</option>
+            </select>
+            <select
+              aria-label="Filtrar por estado"
               value={status}
               onChange={(event) => setStatus(event.target.value)}
               className="rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-bold outline-none"
             >
               <option value="all">{t("adminProducts.statuses.all")}</option>
-              <option value="active">{t("adminProducts.statuses.active")}</option>
-              <option value="draft">{t("adminProducts.statuses.draft")}</option>
-              <option value="disabled">{t("adminProducts.statuses.disabled")}</option>
+              <optgroup label="Moderación">
+                <option value="pending">Pendiente de revisión</option>
+                <option value="observed">Con observaciones</option>
+                <option value="approved">Aprobado</option>
+                <option value="rejected">Rechazado</option>
+              </optgroup>
+              <optgroup label="Estado comercial">
+                <option value="active">{t("adminProducts.statuses.active")}</option>
+                <option value="draft">{t("adminProducts.statuses.draft")}</option>
+                <option value="hidden">{t("adminProducts.statuses.hidden")}</option>
+                <option value="disabled">{t("adminProducts.statuses.disabled")}</option>
+              </optgroup>
             </select>
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[1160px] text-left text-sm">
+        <div className="mt-6 pb-12">
+          <table className="w-full table-fixed text-left text-sm">
             <thead className="border-b border-neutral-200 text-xs uppercase tracking-[0.16em] text-neutral-400">
               <tr>
-                <th className="p-4">{t("adminProducts.table.product")}</th>
-                <th className="p-4">SKU</th>
-                <th className="p-4">{t("adminProducts.table.collection")}</th>
-                <th className="p-4">{t("adminProducts.table.price")}</th>
-                <th className="p-4">{t("adminProducts.table.stock")}</th>
-                <th className="p-4">{t("adminProducts.table.status")}</th>
-                <th className="p-4">Moderación</th>
-                <th className="p-4">Visibilidad</th>
-                <th className="p-4 text-right">{t("adminProducts.table.actions")}</th>
+                <th className="w-[19%] p-2">{t("adminProducts.table.product")}</th>
+                <th className="w-[10%] p-2">SKU</th>
+                <th className="w-[8%] p-2">{t("adminProducts.table.collection")}</th>
+                <th className="w-[7%] p-2">{t("adminProducts.table.price")}</th>
+                <th className="w-[5%] p-2">{t("adminProducts.table.stock")}</th>
+                <th className="w-[8%] p-2">{t("adminProducts.table.status")}</th>
+                <th className="w-[14%] p-2">Moderación</th>
+                <th className="w-[11%] p-2">Visibilidad</th>
+                <th className="w-[18%] p-2 text-right">{t("adminProducts.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((product) => (
-                <tr key={product.id} className="border-b border-neutral-100">
-                  <td className="p-4">
+                <tr key={product.id} className="border-b border-neutral-100 transition hover:bg-neutral-50/70">
+                  <td className="px-2 py-3.5">
                     <div className="flex items-center gap-3">
                       <img
                         src={product.image}
                         alt=""
-                        className="h-16 w-16 rounded-2xl object-cover"
+                        className="h-14 w-14 shrink-0 rounded-2xl border border-neutral-200 object-cover shadow-sm"
                         onError={(event) => {
                           event.currentTarget.onerror = null;
                           event.currentTarget.src = "/images/catalog/coleccion-recuerdos-andes.png";
                         }}
                       />
-                      <div>
-                        <p className="font-black text-neutral-950">{product.name}</p>
-                        <p className="text-xs text-neutral-500">{product.id}</p>
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 font-black leading-5 text-neutral-950">{product.name}</p>
+                        <p className="mt-0.5 truncate text-xs text-neutral-500" title={product.id}>{product.id}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 font-mono text-xs">{product.sku}</td>
-                  <td className="p-4">{t(`categories.${product.collection ?? product.category}`)}</td>
-                  <td className="p-4 font-bold">{formatMoney(product.priceUsd, "USD")}</td>
-                  <td className="p-4">{product.stock}</td>
-                  <td className="p-4">
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-black text-neutral-700">
+                  <td className="truncate px-2 py-3.5 font-mono text-xs" title={product.sku}>{product.sku}</td>
+                  <td className="px-2 py-3.5 text-xs">{t(`categories.${product.collection ?? product.category}`)}</td>
+                  <td className="px-2 py-3.5 text-xs font-bold">{formatMoney(product.priceUsd, "USD")}</td>
+                  <td className="px-2 py-3.5">{product.stock}</td>
+                  <td className="px-2 py-3.5">
+                    <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs font-black text-neutral-700">
                       {t(`adminProducts.statuses.${product.status ?? "active"}`)}
                     </span>
                   </td>
-                  <td className="p-4">
-                    <span className={`rounded-full px-3 py-1 text-xs font-black ${statusTone(product.moderationStatus)}`}>
-                      {moderationLabel(product.moderationStatus)}
-                    </span>
-                    {product.moderationNote ? (
-                      <p className="mt-2 max-w-44 text-xs leading-5 text-neutral-500">
-                        {product.moderationNote}
-                      </p>
-                    ) : null}
-                  </td>
-                  <td className="p-4">
-                    {product.status === "active" && product.moderationStatus === "APPROVED" ? (
-                      <span className="font-bold text-emerald-700">Publicado</span>
-                    ) : (
-                      <span className="font-bold text-neutral-500">No visible</span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex justify-end gap-2">
-                      {canManageProducts ? <button
-                        type="button"
-                        onClick={() => void toggleProductStatus(product)}
-                        className="rounded-xl border border-neutral-200 p-2 transition hover:bg-neutral-100"
-                        title={t("adminProducts.toggle")}
-                      >
-                        <CheckCircle2 size={17} />
-                      </button> : null}
-                      {canManageProducts ? <button
+                  <td className="px-2 py-3.5">
+                    {product.moderationStatus === "OBSERVED" && canManageProducts ? (
+                      <button
                         type="button"
                         onClick={() => openEdit(product)}
-                        className="rounded-xl border border-neutral-200 p-2 transition hover:bg-neutral-100"
-                        title={t("adminProducts.edit")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-100 px-2.5 py-1.5 text-xs font-black text-amber-900 shadow-sm transition hover:bg-amber-200"
+                        title="Editar producto para atender las observaciones"
                       >
-                        <Edit3 size={17} />
-                      </button> : null}
-                      {isAdmin ? <button
+                        <Edit3 size={14} /> Con observaciones
+                      </button>
+                    ) : (
+                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${statusTone(product.moderationStatus)}`}>
+                        {moderationLabel(product.moderationStatus)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-2 py-3.5 text-xs">
+                    {product.status === "active" && product.moderationStatus === "APPROVED" && (product.stock ?? 0) > 0 ? (
+                      <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 font-black text-emerald-800">Publicado</span>
+                    ) : product.status === "hidden" ? (
+                      <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 font-black text-amber-900">Oculto</span>
+                    ) : product.status === "disabled" ? (
+                      <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 font-black text-red-800">Desactivado</span>
+                    ) : product.moderationStatus === "APPROVED" && (product.stock ?? 0) <= 0 ? (
+                      <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 font-black text-blue-800">Sin stock</span>
+                    ) : (
+                      <span className="inline-flex rounded-full bg-neutral-200 px-2.5 py-1 font-black text-neutral-700">No visible</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-3.5">
+                    <div className="flex items-center justify-end gap-1.5">
+                      {canManageProducts && product.moderationStatus === "APPROVED" && (product.stock ?? 0) > 0 && product.status !== "active" ? <button
                         type="button"
-                        onClick={() => void deleteProduct(product.id)}
-                        className="rounded-xl border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
-                        title={t("adminProducts.delete")}
+                        aria-label="Activar"
+                        disabled={busyProductAction !== null}
+                        onClick={() => void changeProductStatus(product, "active")}
+                        className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        <Trash2 size={17} />
+                        {busyProductAction === `${product.id}-active` ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+                        <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100">Activar</span>
+                      </button> : null}
+                      {canManageProducts && product.moderationStatus === "APPROVED" && (product.stock ?? 0) > 0 && product.status !== "disabled" ? <button
+                        type="button"
+                        aria-label="Desactivar"
+                        disabled={busyProductAction !== null}
+                        onClick={() => void changeProductStatus(product, "disabled")}
+                        className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {busyProductAction === `${product.id}-disabled` ? <Loader2 size={16} className="animate-spin" /> : <PowerOff size={16} />}
+                        <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100">Desactivar</span>
+                      </button> : null}
+                      {canManageProducts && product.moderationStatus === "APPROVED" && (product.stock ?? 0) > 0 && product.status !== "hidden" ? <button
+                        type="button"
+                        aria-label="Ocultar"
+                        disabled={busyProductAction !== null}
+                        onClick={() => void changeProductStatus(product, "hidden")}
+                        className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {busyProductAction === `${product.id}-hidden` ? <Loader2 size={16} className="animate-spin" /> : <EyeOff size={16} />}
+                        <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100">Ocultar</span>
+                      </button> : null}
+                      {canManageProducts ? <button
+                        type="button"
+                        aria-label="Editar"
+                        onClick={() => openEdit(product)}
+                        disabled={busyProductAction !== null}
+                        className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 disabled:opacity-40"
+                      >
+                        <Edit3 size={16} />
+                        <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100">Editar</span>
+                      </button> : null}
+                      {canManageProducts ? <button
+                        type="button"
+                        aria-label={pendingDeletionIds.has(product.id) ? "Eliminación pendiente" : "Eliminar permanentemente"}
+                        disabled={pendingDeletionIds.has(product.id) || busyProductAction !== null}
+                        onClick={() => { setDeletionProduct(product); setDeletionReason(""); }}
+                        className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <Trash2 size={16} />
+                        <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 whitespace-nowrap rounded-lg bg-neutral-950 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100">{pendingDeletionIds.has(product.id) ? "Eliminación pendiente" : "Eliminar permanentemente"}</span>
                       </button> : null}
                     </div>
                   </td>
@@ -548,6 +723,32 @@ export function AdminPage() {
           </table>
         </div>
       </section>
+
+      {isAdmin && salesStats && salesReport ? <section className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm" aria-labelledby="sales-report-title">
+        <header className="flex flex-col gap-5 bg-gradient-to-br from-neutral-950 to-slate-900 px-6 py-7 text-white md:flex-row md:items-end md:justify-between md:px-8">
+          <div><p className="text-xs font-black uppercase tracking-[0.22em] text-primary">Inteligencia comercial</p><h2 id="sales-report-title" className="mt-2 font-display text-3xl font-black">Reportes de ventas y rotación</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">Basado en pedidos confirmados o en gestión. Los cancelados y pendientes de WhatsApp no se cuentan como ventas.</p></div>
+          <div className="grid grid-cols-3 gap-2 text-center text-neutral-950"><div className="rounded-2xl bg-white px-4 py-3"><p className="text-[10px] font-black uppercase text-neutral-400">Pedidos</p><p className="mt-1 text-xl font-black">{salesStats.summary.ordersCount}</p></div><div className="rounded-2xl bg-white px-4 py-3"><p className="text-[10px] font-black uppercase text-neutral-400">Unidades</p><p className="mt-1 text-xl font-black">{salesStats.summary.unitsSold}</p></div><div className="rounded-2xl bg-primary px-4 py-3"><p className="text-[10px] font-black uppercase text-neutral-600">Ingresos</p><p className="mt-1 text-xl font-black">{formatMoney(Number(salesStats.summary.revenueUsd), "USD")}</p></div></div>
+        </header>
+
+        <div className="grid gap-6 p-5 lg:grid-cols-2 md:p-7">
+          <article className="rounded-[1.75rem] border border-emerald-100 bg-emerald-50/40 p-5">
+            <div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white"><TrendingUp size={21} /></span><div><h3 className="font-display text-xl font-black">Productos más vendidos</h3><p className="text-xs text-neutral-500">Prioridad para reposición y disponibilidad</p></div></div>
+            <div className="mt-5 space-y-3">{salesStats.topProducts.length ? salesStats.topProducts.map((product, index) => <div key={product.productId} className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm"><div className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-xs font-black text-white">{index + 1}</span><img src={product.image} alt="" className="h-14 w-14 shrink-0 rounded-xl border border-black/5 object-cover" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-black">{product.name}</p><p className="mt-0.5 font-mono text-[11px] text-neutral-400">{product.sku}</p></div><div className="text-right"><p className="font-display text-xl font-black text-emerald-700">{product.unitsSold}</p><p className="text-[10px] font-bold uppercase text-neutral-400">unidades</p></div></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(product.unitsSold ? 8 : 0, (product.unitsSold / salesReport.maxUnits) * 100)}%` }} /></div><div className="mt-2 flex items-center justify-between text-xs"><span className="font-bold text-neutral-500">{formatMoney(Number(product.revenueUsd), "USD")} generados</span><span className={`rounded-full px-2 py-1 font-black ${product.currentStock <= 8 ? "bg-red-100 text-red-700" : "bg-neutral-100 text-neutral-600"}`}>Stock {product.currentStock}</span></div></div></div></div>) : <p className="rounded-2xl bg-white p-5 text-center text-sm text-neutral-500">Aún no existen ventas comerciales confirmadas.</p>}</div>
+          </article>
+
+          <article className="rounded-[1.75rem] border border-amber-100 bg-amber-50/40 p-5">
+            <div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500 text-white"><TrendingDown size={21} /></span><div><h3 className="font-display text-xl font-black">Productos con menor rotación</h3><p className="text-xs text-neutral-500">Oportunidades para promoción o ajuste de compra</p></div></div>
+            <div className="mt-5 space-y-3">{salesStats.lowProducts.length ? salesStats.lowProducts.map((product) => <div key={product.productId} className="flex items-center gap-3 rounded-2xl border border-black/5 bg-white p-4 shadow-sm"><img src={product.image} alt="" className="h-14 w-14 shrink-0 rounded-xl border border-black/5 object-cover" /><div className="min-w-0 flex-1"><p className="truncate font-black">{product.name}</p><p className="mt-0.5 font-mono text-[11px] text-neutral-400">{product.sku}</p><div className="mt-2 flex flex-wrap gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${product.unitsSold === 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900"}`}>{product.unitsSold === 0 ? "Sin ventas" : `${product.unitsSold} vendidas`}</span><span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-black text-neutral-600">Stock {product.currentStock}</span><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">{t(`categories.${product.collection}`)}</span></div></div><p className="shrink-0 text-right text-xs font-black text-neutral-500">{formatMoney(Number(product.revenueUsd), "USD")}</p></div>) : <p className="rounded-2xl bg-white p-5 text-center text-sm text-neutral-500">No hay productos aprobados para comparar.</p>}</div>
+          </article>
+
+          <article className="rounded-[1.75rem] border border-neutral-200 p-5 lg:col-span-2">
+            <div className="flex flex-col gap-5 xl:flex-row">
+              <div className="min-w-0 flex-1"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700"><BarChart3 size={21} /></span><div><h3 className="font-display text-xl font-black">Tendencia de ingresos</h3><p className="text-xs text-neutral-500">Últimos días con actividad comercial registrada</p></div></div>{salesReport.recentRevenue.length ? <div className="mt-6 flex h-52 items-end gap-2 overflow-x-auto pb-1">{salesReport.recentRevenue.map((day) => { const value = Number(day.revenueUsd); return <div key={day.day} className="group flex min-w-14 flex-1 flex-col items-center justify-end"><span className="mb-2 text-[10px] font-black text-neutral-500 opacity-0 transition group-hover:opacity-100">${value.toFixed(0)}</span><div className="w-full rounded-t-xl bg-gradient-to-t from-blue-700 to-blue-400 transition hover:from-primary hover:to-amber-300" style={{ height: `${Math.max(8, (value / salesReport.maxDailyRevenue) * 150)}px` }} /><span className="mt-2 text-[10px] font-bold text-neutral-400">{new Intl.DateTimeFormat("es-EC", { day: "2-digit", month: "short" }).format(new Date(`${day.day}T12:00:00`))}</span></div>; })}</div> : <p className="mt-6 rounded-2xl bg-neutral-50 p-8 text-center text-sm text-neutral-500">Todavía no hay ingresos para graficar.</p>}</div>
+              <aside className="w-full rounded-2xl bg-neutral-950 p-5 text-white xl:w-80"><Lightbulb className="text-primary" size={24} /><h3 className="mt-3 font-display text-lg font-black">Lectura rápida</h3><ul className="mt-4 space-y-3 text-sm leading-6 text-white/70"><li><b className="text-white">Alta demanda:</b> {salesStats.topProducts[0]?.name ?? "Sin datos todavía"}.</li><li><b className="text-white">Sin rotación:</b> {salesReport.zeroSales} producto{salesReport.zeroSales === 1 ? "" : "s"} entre los de menor desempeño.</li><li><b className="text-white">Reposición:</b> {salesReport.restock.length ? `${salesReport.restock.length} producto(s) de alta demanda tienen 8 unidades o menos.` : "Los más vendidos conservan stock suficiente."}</li></ul></aside>
+            </div>
+          </article>
+        </div>
+      </section> : null}
 
       {formOpen ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -582,6 +783,21 @@ export function AdminPage() {
               </span>
             </div>
 
+            {editingProduct?.moderationStatus === "OBSERVED" && editingProduct.moderationNote ? (
+              <section className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-4" aria-labelledby="moderation-observation-title">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-900">
+                    <Edit3 size={17} />
+                  </div>
+                  <div>
+                    <h3 id="moderation-observation-title" className="font-black text-amber-950">Cambios solicitados por moderación</h3>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-amber-900">{editingProduct.moderationNote}</p>
+                    <p className="mt-2 text-xs font-bold text-amber-800">Modifica los campos necesarios y envía nuevamente el producto a revisión.</p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
             {formError ? (
               <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                 {formError}
@@ -593,7 +809,7 @@ export function AdminPage() {
                 <div>
                   <div className="aspect-square overflow-hidden rounded-[2rem] bg-neutral-100">
                     <img
-                      src={form.image || "/images/catalog/coleccion-recuerdos-andes.png"}
+                      src={formImages[formImageIndex] || form.image || "/images/catalog/coleccion-recuerdos-andes.png"}
                       alt={form.name || "Vista del producto"}
                       className="h-full w-full object-cover"
                       onError={(event) => {
@@ -602,8 +818,33 @@ export function AdminPage() {
                       }}
                     />
                   </div>
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    {Array.from({ length: 4 }).map((_, index) => {
+                      const image = formImages[index];
+                      return image ? (
+                        <button
+                          key={`${image}-${index}`}
+                          type="button"
+                          onClick={() => setFormImageIndex(index)}
+                          className={`relative aspect-square overflow-hidden rounded-xl border-2 bg-neutral-100 transition ${index === formImageIndex ? "border-neutral-950 shadow-md" : "border-transparent hover:border-neutral-300"}`}
+                          aria-label={`Ver imagen ${index + 1}`}
+                        >
+                          <img src={image} alt={`Vista ${index + 1}`} className="h-full w-full object-cover" />
+                          <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/75 text-[10px] font-black text-white">{index + 1}</span>
+                        </button>
+                      ) : (
+                        <div key={index} className="flex aspect-square items-center justify-center rounded-xl border-2 border-dashed border-neutral-200 bg-neutral-50 text-xs font-black text-neutral-300">{index + 1}</div>
+                      );
+                    })}
+                  </div>
+                  {formImages[formImageIndex] ? <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                    <button type="button" disabled={formImageIndex === 0} onClick={() => moveFormImage(formImageIndex, formImageIndex - 1)} className="inline-flex items-center gap-1 rounded-full border border-neutral-200 px-3 py-2 text-xs font-black disabled:opacity-35"><ChevronLeft size={15} /> Mover</button>
+                    <span className="rounded-full bg-neutral-950 px-3 py-2 text-xs font-black text-white">Vista {formImageIndex + 1} de {formImages.length}</span>
+                    <button type="button" disabled={formImageIndex === formImages.length - 1} onClick={() => moveFormImage(formImageIndex, formImageIndex + 1)} className="inline-flex items-center gap-1 rounded-full border border-neutral-200 px-3 py-2 text-xs font-black disabled:opacity-35">Mover <ChevronRight size={15} /></button>
+                    <button type="button" onClick={() => removeFormImage(formImageIndex)} className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"><Trash2 size={14} /> Quitar</button>
+                  </div> : null}
                   <p className="mt-3 text-xs leading-5 text-neutral-500">
-                    La imagen debe mostrar el producto real, con fondo limpio y sin rótulos técnicos.
+                    Selecciona una miniatura para verla. Usa “Mover” para ordenar; la vista 1 será la portada.
                   </p>
                 </div>
 
@@ -614,7 +855,8 @@ export function AdminPage() {
                   </label>
                   <label className="text-sm font-bold text-neutral-700">
                     SKU
-                    <input value={form.sku} onChange={(event) => setForm((current) => ({ ...current, sku: event.target.value.toUpperCase() }))} placeholder="GLP-CAM-025" className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+                    <input readOnly value={editingId ? form.sku : "Se generará al guardar"} className="mt-2 w-full cursor-not-allowed rounded-2xl border border-neutral-200 bg-neutral-100 px-4 py-3 text-sm font-bold text-neutral-500 outline-none" />
+                    <span className="mt-2 block text-xs font-normal leading-5 text-neutral-500">Código automático, legible y único basado en el tipo y el nombre.</span>
                   </label>
                   <div className="sm:col-span-2">
                     <span className="text-sm font-bold text-neutral-700">Imágenes del producto</span>
@@ -633,8 +875,14 @@ export function AdminPage() {
                     <p className="mt-2 text-xs leading-5 text-neutral-500">Hasta 4 archivos JPG, PNG o WebP. Máximo 2 MB por imagen. La primera fotografía será la portada.</p>
                     <details className="mt-3 text-xs text-neutral-500">
                       <summary className="cursor-pointer font-bold">Usar una ruta existente</summary>
-                      <input value={form.image} onChange={(event) => setForm((current) => ({ ...current, image: event.target.value }))} placeholder="/images/catalog/producto.webp" className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+                      <div className="mt-2 flex gap-2">
+                        <input id="existing-image-route" placeholder="/images/catalog/producto.webp" className="min-w-0 flex-1 rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary" />
+                        <button type="button" onClick={() => { const input = document.getElementById("existing-image-route") as HTMLInputElement | null; const value = input?.value.trim(); if (value) { updateFormImages([...formImages, value], formImages.length); if (input) input.value = ""; } }} className="rounded-2xl bg-neutral-950 px-4 py-3 text-xs font-black text-white">Agregar</button>
+                      </div>
                     </details>
+                    <div className={`mt-3 rounded-2xl px-4 py-3 text-xs font-bold ${formImages.length === 4 ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
+                      {formImages.length}/4 imágenes · necesitas portada, posterior, detalle y producto completo.
+                    </div>
                   </div>
 
                   <label className="text-sm font-bold text-neutral-700">
@@ -689,16 +937,6 @@ export function AdminPage() {
                     <input type="number" disabled value={form.stock} className="mt-2 w-full rounded-2xl border border-neutral-200 bg-neutral-100 px-4 py-3 text-sm text-neutral-500" />
                     <span className="mt-1 block text-xs font-normal text-neutral-400">Se actualiza desde Operaciones.</span>
                   </label>
-                  <label className="text-sm font-bold text-neutral-700 sm:col-span-2">
-                    {t("adminProducts.form.images")} · 4 vistas recomendadas
-                    <input value={imagesText} onChange={(event) => setImagesText(event.target.value)} placeholder="Frontal, posterior, detalle y vista completa; separadas por comas" className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-primary" />
-                    <span className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-normal text-neutral-500">
-                      <span>Orden: frontal → posterior → detalle → producto completo.</span>
-                      <span className={`rounded-full px-2.5 py-1 font-black ${textToList(imagesText).length === 4 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>
-                        {textToList(imagesText).length}/4 imágenes
-                      </span>
-                    </span>
-                  </label>
                   {form.collection !== "souvenirs" ? (
                     <label className="text-sm font-bold text-neutral-700 sm:col-span-2">
                       {t("adminProducts.form.sizes")}
@@ -718,7 +956,13 @@ export function AdminPage() {
             ) : (
               <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
                 <article className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-xl shadow-black/10">
-                  <img src={form.image} alt={form.name} className="aspect-square w-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/images/catalog/coleccion-recuerdos-andes.png"; }} />
+                  <div className="relative">
+                    <img src={formImages[formImageIndex] ?? form.image} alt={`${form.name} · vista ${formImageIndex + 1}`} className="aspect-square w-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/images/catalog/coleccion-recuerdos-andes.png"; }} />
+                    <span className="absolute right-4 top-4 rounded-full bg-black/80 px-3 py-2 text-xs font-black text-white">Vista {formImageIndex + 1}/4</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 border-b border-neutral-100 p-3">
+                    {formImages.map((image, index) => <button key={`${image}-preview-${index}`} type="button" onClick={() => setFormImageIndex(index)} className={`aspect-square overflow-hidden rounded-xl border-2 bg-neutral-100 ${formImageIndex === index ? "border-neutral-950" : "border-transparent"}`}><img src={image} alt={`Seleccionar vista ${index + 1}`} className="h-full w-full object-cover" /></button>)}
+                  </div>
                   <div className="p-6">
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{t(`categories.${form.collection}`)} · {t(`concepts.${form.concept}.title`)}</p>
                     <h3 className="mt-3 font-display text-3xl font-black text-neutral-950">{form.name}</h3>
@@ -770,6 +1014,31 @@ export function AdminPage() {
           </div>
         </div>
       ) : null}
+
+      {deletionProduct ? <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeletionProduct(null); }}>
+        <form role="dialog" aria-modal="true" aria-labelledby="deletion-request-title" onSubmit={(event) => void requestPermanentDeletion(event)} className="w-full max-w-2xl overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+          <div className="bg-gradient-to-br from-rose-700 to-red-950 px-6 py-7 text-white md:px-8">
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="text-xs font-black uppercase tracking-[0.2em] text-rose-200">Solicitud controlada</p><h2 id="deletion-request-title" className="mt-2 font-display text-3xl font-black">Eliminar producto definitivamente</h2></div>
+              <button type="button" aria-label="Cerrar" onClick={() => setDeletionProduct(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10"><X size={19} /></button>
+            </div>
+          </div>
+          <div className="p-6 md:p-8">
+            <div className="flex items-center gap-4 rounded-2xl bg-neutral-50 p-4">
+              <img src={deletionProduct.image} alt="" className="h-20 w-20 rounded-2xl object-cover" />
+              <div><p className="font-black text-neutral-950">{deletionProduct.name}</p><p className="mt-1 font-mono text-xs text-neutral-500">SKU {deletionProduct.sku}</p><p className="mt-1 text-xs text-neutral-500">Stock actual: {deletionProduct.stock ?? 0}</p></div>
+            </div>
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><b>Requiere aprobación del moderador.</b> Mientras se revisa, el producto quedará oculto. Si posee pedidos, devoluciones o movimientos de inventario, el sistema protegerá el historial y bloqueará la eliminación física.</div>
+            <label htmlFor="deletion-reason" className="mt-5 block text-sm font-black text-neutral-800">Razón empresarial de la eliminación</label>
+            <textarea id="deletion-reason" autoFocus required minLength={20} maxLength={500} rows={5} value={deletionReason} onChange={(event) => setDeletionReason(event.target.value)} placeholder="Explica por qué debe desaparecer de forma definitiva, por ejemplo: registro duplicado creado por error y sin movimientos comerciales." className="mt-2 w-full resize-none rounded-2xl border border-neutral-200 px-4 py-3 text-sm leading-6 outline-none focus:border-rose-400" />
+            <div className="mt-2 flex justify-between text-xs text-neutral-500"><span>Mínimo 20 caracteres.</span><span>{deletionReason.length}/500</span></div>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button type="button" onClick={() => { setDeletionProduct(null); setDeletionReason(""); }} className="rounded-full border border-neutral-200 px-5 py-3 text-sm font-black">Cancelar</button>
+              <button type="submit" disabled={deletionReason.trim().length < 20 || busyProductAction !== null} className="inline-flex items-center gap-2 rounded-full bg-rose-700 px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{busyProductAction ? <Loader2 size={17} className="animate-spin" /> : <Trash2 size={17} />} Enviar al moderador</button>
+            </div>
+          </div>
+        </form>
+      </div> : null}
     </div>
   );
 }

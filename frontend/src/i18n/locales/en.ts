@@ -472,6 +472,7 @@ export const en = {
       all: "All",
       active: "Active",
       draft: "Draft",
+      hidden: "Hidden",
       disabled: "Disabled",
     },
     table: {

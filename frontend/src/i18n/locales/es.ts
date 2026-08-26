@@ -490,6 +490,7 @@ export const es = {
       all: "Todos",
       active: "Activo",
       draft: "Borrador",
+      hidden: "Oculto",
       disabled: "Desactivado",
     },
     table: {

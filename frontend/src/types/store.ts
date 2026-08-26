@@ -66,12 +66,13 @@ export interface Product {
   color: ProductColor;
   sizes?: string[];
   stock?: number;
-  status?: "active" | "draft" | "disabled";
+  status?: "active" | "draft" | "hidden" | "disabled";
   moderationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "OBSERVED";
   moderationNote?: string | null;
   description?: string | null;
   story?: string | null;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CartItem {

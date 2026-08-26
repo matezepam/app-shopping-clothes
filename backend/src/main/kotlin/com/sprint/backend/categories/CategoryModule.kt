@@ -1,5 +1,6 @@
 package com.sprint.backend.categories
 
+import com.sprint.backend.products.ProductRepository
 import jakarta.persistence.*
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -26,13 +27,14 @@ class Category(
 interface CategoryRepository : JpaRepository<Category, Long> {
     fun findAllByActiveTrueOrderByName(): List<Category>
     fun existsBySlug(slug: String): Boolean
+    fun existsByParentId(parentId: Long): Boolean
 }
 
 data class CategoryRequest(@field:NotBlank @field:Size(max = 100) val name: String, val parentId: Long? = null, val active: Boolean = true)
 data class CategoryResponse(val id: Long, val name: String, val slug: String, val parentId: Long?, val active: Boolean)
 
 @Service
-class CategoryService(private val repository: CategoryRepository) {
+class CategoryService(private val repository: CategoryRepository, private val products: ProductRepository) {
     fun publicList() = repository.findAllByActiveTrueOrderByName().map { it.dto() }
     fun adminList() = repository.findAll().sortedBy { it.name }.map { it.dto() }
 
@@ -47,8 +49,23 @@ class CategoryService(private val repository: CategoryRepository) {
     @Transactional
     fun update(id: Long, r: CategoryRequest): CategoryResponse {
         val c = repository.findById(id).orElseThrow { IllegalArgumentException("Categoría no encontrada") }
+        require(r.parentId != id) { "Una categoría no puede depender de sí misma" }
+        r.parentId?.let { require(repository.existsById(it)) { "La categoría padre no existe" } }
+        val nextSlug = slug(r.name)
+        if (nextSlug != c.slug && products.countByTaxonomyValue(c.slug) == 0L) {
+            require(!repository.existsBySlug(nextSlug)) { "Ya existe una categoría con ese nombre" }
+            c.slug = nextSlug
+        }
         c.name = r.name.trim(); c.parentId = r.parentId; c.active = r.active
         return repository.save(c).dto()
+    }
+
+    @Transactional
+    fun delete(id: Long) {
+        val category = repository.findById(id).orElseThrow { IllegalArgumentException("Categoría no encontrada") }
+        require(!repository.existsByParentId(id)) { "No se puede eliminar porque contiene subcategorías relacionadas" }
+        require(products.countByTaxonomyValue(category.slug) == 0L) { "No se puede eliminar porque está relacionada con productos. Puedes desactivarla." }
+        repository.delete(category)
     }
 
     private fun Category.dto() = CategoryResponse(id!!, name, slug, parentId, active)
@@ -64,4 +81,6 @@ class CategoryController(private val service: CategoryService) {
     fun create(@Valid @RequestBody r: CategoryRequest) = mapOf("category" to service.create(r))
     @PutMapping("/admin/{id}") @PreAuthorize("hasAnyRole('ADMIN','VENDOR')")
     fun update(@PathVariable id: Long, @Valid @RequestBody r: CategoryRequest) = mapOf("category" to service.update(id, r))
+    @DeleteMapping("/admin/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) @PreAuthorize("hasRole('ADMIN')")
+    fun delete(@PathVariable id: Long) = service.delete(id)
 }

@@ -1,9 +1,11 @@
 package com.sprint.backend
 
+import com.sprint.backend.admin.AdminService
 import com.sprint.backend.orders.CheckoutLine
 import com.sprint.backend.orders.CheckoutRequest
 import com.sprint.backend.orders.OrderService
 import com.sprint.backend.orders.OrderStatusRequest
+import com.sprint.backend.inventory.InventoryMovementRepository
 import com.sprint.backend.products.Product
 import com.sprint.backend.products.ProductRepository
 import com.sprint.backend.users.User
@@ -29,7 +31,9 @@ class OrderServiceTests(
     @Autowired private val service: OrderService,
     @Autowired private val users: UserRepository,
     @Autowired private val products: ProductRepository,
-    @Autowired private val returnService: ReturnService
+    @Autowired private val returnService: ReturnService,
+    @Autowired private val inventoryMovements: InventoryMovementRepository,
+    @Autowired private val adminService: AdminService
 ) {
     private lateinit var jwt: Jwt
 
@@ -48,6 +52,10 @@ class OrderServiceTests(
         val second = service.create(jwt, request, "same-request")
         assertEquals(first.id, second.id)
         assertEquals(3, products.findById("test-product").orElseThrow().stock)
+        val purchaseMovement = inventoryMovements.findAllByOrderByCreatedAtDesc().first { it.reference == first.id.toString() }
+        assertEquals("RESERVE", purchaseMovement.type)
+        assertEquals(2, purchaseMovement.quantity)
+        assertEquals(3, purchaseMovement.resultingStock)
         assertEquals(BigDecimal("25.00"), first.totalUsd)
         assert(first.whatsappUrl.startsWith("https://wa.me/593939051525?text="))
         val decodedMessage = URLDecoder.decode(first.whatsappUrl.substringAfter("?text="), StandardCharsets.UTF_8)
@@ -64,6 +72,21 @@ class OrderServiceTests(
     }
 
     @Test
+    fun `admin sales report separates best sellers from products without rotation`() {
+        products.save(Product(id = "slow-product", sku = "SLOW-001", name = "Producto sin rotación", collection = "women", category = "shirts", subcategory = "camisetas", concept = "andes", priceUsd = BigDecimal("18.00"), image = "/slow.svg", gender = "female", color = "beige", stock = 9, status = "active", moderationStatus = "APPROVED"))
+        val order = service.create(jwt, CheckoutRequest(listOf(CheckoutLine("test-product", 2)), "Quito", "+593999999999"), "sales-report")
+        service.updateStatus(jwt, order.id, OrderStatusRequest("CONFIRMED"))
+
+        val report = adminService.stats()
+        assertEquals("test-product", report.topProducts.first().productId)
+        assertEquals(2, report.topProducts.first().unitsSold)
+        val slow = report.lowProducts.first { it.productId == "slow-product" }
+        assertEquals(0, slow.unitsSold)
+        assertEquals(BigDecimal.ZERO, slow.revenueUsd)
+        assertEquals(9, slow.currentStock)
+    }
+
+    @Test
     fun `delivered order can be returned and restores stock once`() {
         val order = service.create(jwt, CheckoutRequest(listOf(CheckoutLine("test-product", 2)), "Quito", "+593999999999"), "return-flow")
         service.updateStatus(jwt, order.id, OrderStatusRequest("CONFIRMED"))
@@ -77,6 +100,9 @@ class OrderServiceTests(
         returnService.patch(jwt, returned.id, PatchReturnRequest("APPROVED", "Procede"))
         returnService.patch(jwt, returned.id, PatchReturnRequest("RECEIVED", "Producto recibido"))
         assertEquals(5, products.findById("test-product").orElseThrow().stock)
+        val returnMovement = inventoryMovements.findAllByOrderByCreatedAtDesc().first { it.reference == returned.id.toString() }
+        assertEquals("RETURN", returnMovement.type)
+        assertEquals(5, returnMovement.resultingStock)
     }
 
     @Test

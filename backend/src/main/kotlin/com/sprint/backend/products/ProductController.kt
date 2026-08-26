@@ -2,13 +2,14 @@ package com.sprint.backend.products
 
 import com.sprint.backend.products.dto.ProductRequest
 import com.sprint.backend.products.dto.ProductResponse
+import com.sprint.backend.products.dto.ProductStatusRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
-import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.RequestMapping
@@ -54,12 +55,13 @@ class ProductController(
         return mapOf("product" to productService.update(id, request))
     }
 
-    @DeleteMapping("/admin/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
-    fun delete(
-        @PathVariable id: String
-    ) {
-        productService.delete(id)
+    @PatchMapping("/admin/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN','VENDOR')")
+    fun updateStatus(
+        @PathVariable id: String,
+        @Valid @RequestBody request: ProductStatusRequest
+    ): Map<String, ProductResponse> {
+        return mapOf("product" to productService.updateStatus(id, request.status))
     }
+
 }
