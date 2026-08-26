@@ -158,6 +158,7 @@ Resources:
           aws ecr get-login-password --region '${AWS::Region}' | docker login --username AWS --password-stdin '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com'
           docker network create sprint-internal
           docker volume create sprint-postgres-data
+          docker volume create sprint-product-images
           docker run -d --name sprint-db --restart unless-stopped --network sprint-internal \
             --log-opt max-size=10m --log-opt max-file=3 \
             -e POSTGRES_DB='sprint' \
@@ -175,17 +176,22 @@ Resources:
           docker pull '${ImageIdentifier}'
           docker run -d --name sprint-api --restart unless-stopped -p 8080:8080 \
             --network sprint-internal --log-opt max-size=10m --log-opt max-file=3 \
-            -e SPRING_DATASOURCE_URL='jdbc:postgresql://sprint-db:5432/sprint' \
-            -e SPRING_DATASOURCE_USERNAME='sprint_app' \
-            -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
+            -e IDENTITY_DATASOURCE_URL='jdbc:postgresql://sprint-db:5432/sprint' \
+            -e COMMERCE_DATASOURCE_URL='jdbc:postgresql://sprint-db:5432/sprint' \
+            -e DATABASE_USERNAME='sprint_app' \
+            -e DATABASE_PASSWORD="$DB_PASSWORD" \
             -e AWS_COGNITO_REGION='${AWS::Region}' \
             -e AWS_COGNITO_USER_POOL_ID='${CognitoUserPoolId}' \
             -e AWS_COGNITO_CLIENT_ID='${CognitoClientId}' \
             -e AWS_COGNITO_CLIENT_SECRET='' \
             -e APP_CORS_ALLOWED_ORIGINS='${FrontendOrigin}' \
             -e APP_WHATSAPP_BUSINESS_NUMBER='${WhatsAppBusinessNumber}' \
-            -e DB_POOL_MAX_SIZE='8' \
-            -e DB_POOL_MIN_IDLE='2' \
+            -e APP_PRODUCT_UPLOAD_DIRECTORY='/app/uploads/products' \
+            -e IDENTITY_DB_POOL_MAX_SIZE='4' \
+            -e IDENTITY_DB_POOL_MIN_IDLE='1' \
+            -e COMMERCE_DB_POOL_MAX_SIZE='8' \
+            -e COMMERCE_DB_POOL_MIN_IDLE='2' \
+            -v sprint-product-images:/app/uploads/products \
             '${ImageIdentifier}'
       Tags:
         - Key: Name
