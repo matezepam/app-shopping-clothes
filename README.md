@@ -80,12 +80,21 @@ Las capturas, diagramas, respaldos históricos y documentos académicos se conse
 ### Requisitos
 
 - Docker Desktop con Docker Compose.
-- PowerShell 7 o Windows PowerShell.
+- PowerShell 7.
+- Git e Internet para descargar imágenes y autenticar con Amazon Cognito.
 - Puertos `8088` y `5050` disponibles.
 
 ### Inicio completo
 
-1. Copiar `.env.example` como `.env` y completar únicamente las variables locales requeridas.
+1. Clonar el repositorio y preparar la configuración privada:
+
+```powershell
+git clone https://github.com/matezepam/app-shopping-clothes.git
+cd app-shopping-clothes
+Copy-Item -LiteralPath '.env.example' -Destination '.env'
+```
+
+Completar las contraseñas locales y los datos del User Pool/App Client de Cognito. El inicio rechaza valores de ejemplo. Si estás recuperando un equipo, utiliza el `.env` del respaldo privado, no uno nuevo. Java, Node.js y PostgreSQL no son necesarios en Windows para ejecutar la aplicación con Docker.
 2. Iniciar la plataforma:
 
 ```powershell
@@ -150,7 +159,17 @@ docker build --target runtime -t sprint-backend ./backend
 docker build --target runtime -t sprint-frontend ./frontend
 ```
 
-GitHub Actions repite estas verificaciones en cada pull request. La rama `main` exige que backend, frontend y contenedores finalicen correctamente antes de integrar cambios.
+GitHub Actions repite estas verificaciones en cada pull request y cada push a `main`. Revisar que backend, frontend y contenedores finalicen correctamente antes de publicar.
+
+## Recuperación después de formatear
+
+Consultar [la guía de clonado y recuperación](docs/RECOVERY.md). **GitHub no contiene la base de datos, las imágenes subidas desde la aplicación ni los secretos**. Antes de restaurar el dispositivo:
+
+```powershell
+.\scripts\backup-project.ps1 -Destination 'E:\RespaldosSprint'
+```
+
+El respaldo completo prueba la restauración de ambas bases en un entorno aislado e incluye imágenes, configuración privada, historial Git y un manifiesto SHA-256. Cambiar el destino por un disco externo real. El ZIP contiene información privada sin cifrar: guardarlo en un lugar protegido y nunca subirlo a GitHub. Una copia en el mismo disco que vas a borrar no protege tus datos.
 
 ## Persistencia y seguridad
 
@@ -165,7 +184,7 @@ GitHub Actions repite estas verificaciones en cada pull request. La rama `main` 
 
 ## Publicación
 
-El proyecto de Vercel debe usar `frontend` como directorio raíz, `npm run build` como comando de construcción y `dist` como directorio de salida. `frontend/vercel.json` mantiene las rutas internas de la SPA y aplica encabezados de seguridad.
+El proyecto de Vercel debe usar `frontend` como directorio raíz, `npm run build` como comando de construcción y `dist` como directorio de salida. `frontend/vercel.json` enruta `/api/*` a la API de AWS antes del fallback de la SPA y aplica encabezados de seguridad. Con este proxy, `VITE_API_URL` puede quedar vacío; para usar otra API explícitamente, debe configurarse su URL y autorizarla en CORS y CSP.
 
 La integración entre GitHub y Vercel genera una vista previa por pull request. Al integrar un cambio aprobado en `main`, Vercel publica automáticamente la nueva versión del frontend. El backend se despliega de forma independiente en AWS para conservar la base de datos y los archivos persistentes.
 

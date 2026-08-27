@@ -1,16 +1,16 @@
 [CmdletBinding()]
-param()
+param([string]$Destination)
 
 $ErrorActionPreference = "Stop"
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $composePath = Join-Path $repositoryRoot "compose.yaml"
 $environmentPath = Join-Path $repositoryRoot ".env"
-$backupDirectory = Join-Path $repositoryRoot "backups"
+$backupDirectory = if ($Destination) { [IO.Path]::GetFullPath($Destination) } else { Join-Path $repositoryRoot "backups" }
 
 if (-not (Test-Path -LiteralPath $environmentPath -PathType Leaf)) { throw "Falta .env. Ejecuta primero scripts\docker-up.ps1." }
 New-Item -ItemType Directory -Path $backupDirectory -Force | Out-Null
-$backupSetPath = Join-Path $backupDirectory ("sprint-databases-{0}" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
-New-Item -ItemType Directory -Path $backupSetPath -Force | Out-Null
+$backupSetPath = Join-Path $backupDirectory ("sprint-databases-{0}" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"))
+New-Item -ItemType Directory -Path $backupSetPath -ErrorAction Stop | Out-Null
 
 $environmentValues = @{}
 Get-Content -LiteralPath $environmentPath | ForEach-Object {
@@ -25,7 +25,8 @@ $databases | ForEach-Object {
 
 Push-Location $repositoryRoot
 try {
-    $containerId = (docker compose --env-file $environmentPath -f $composePath ps -q postgres).Trim()
+    $containerId = (docker compose --env-file $environmentPath -f $composePath ps -q postgres | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "No se pudo consultar PostgreSQL." }
     if ($containerId -notmatch '^[a-f0-9]{12,64}$') { throw "PostgreSQL no está iniciado o no se pudo resolver su contenedor." }
 
     foreach ($database in $databases) {
@@ -39,7 +40,8 @@ try {
         if ((Get-Item -LiteralPath $backupPath).Length -le 0) { throw "El respaldo de $database está vacío." }
     }
 
-    Write-Host "Respaldo verificado de identidad y comercio: $backupSetPath" -ForegroundColor Green
+    Write-Host "Respaldo de identidad y comercio creado: $backupSetPath" -ForegroundColor Green
+    Write-Output $backupSetPath
 } finally {
     Pop-Location
 }

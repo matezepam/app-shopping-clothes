@@ -40,37 +40,10 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 docker info | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Docker Desktop no está iniciado." }
 
-docker volume inspect sprint_clothes_postgres_data *> $null
-if ($LASTEXITCODE -ne 0) {
-    docker volume create sprint_clothes_postgres_data | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "No se pudo crear el volumen persistente de PostgreSQL." }
-}
-
 if (-not (Test-Path -LiteralPath $environmentPath -PathType Leaf)) {
     Copy-Item -LiteralPath $environmentExamplePath -Destination $environmentPath
     Write-Host "Se creó .env a partir de .env.example." -ForegroundColor Cyan
 }
-
-Set-DotEnvValue -Path $environmentPath -Name "APP_HTTP_PORT" -Value $Port
-Set-DotEnvValue -Path $environmentPath -Name "APP_CORS_ALLOWED_ORIGINS" -Value "http://localhost:$Port,http://127.0.0.1:$Port"
-
-$environmentValues = @{}
-Get-Content -LiteralPath $environmentPath | ForEach-Object {
-    if ($_ -match '^([^#=]+)=(.*)$') {
-        $environmentValues[$matches[1].Trim()] = $matches[2].Trim()
-    }
-}
-$identityDatabase = if ($environmentValues["IDENTITY_DATABASE"]) { $environmentValues["IDENTITY_DATABASE"] } else { "sprint_identity" }
-$commerceDatabase = if ($environmentValues["COMMERCE_DATABASE"]) { $environmentValues["COMMERCE_DATABASE"] } else { "sprint_commerce" }
-$postgresUser = if ($environmentValues["POSTGRES_USER"]) { $environmentValues["POSTGRES_USER"] } else { "sprint_app" }
-$postgresPassword = if ($environmentValues["POSTGRES_PASSWORD"]) { $environmentValues["POSTGRES_PASSWORD"] } else { "SprintLocal#2026" }
-$escapedPgPassword = $postgresPassword.Replace("\\", "\\\\").Replace(":", "\:")
-[System.IO.Directory]::CreateDirectory($pgAdminDirectory) | Out-Null
-[System.IO.File]::WriteAllText(
-    $pgPassPath,
-    "postgres:5432:${identityDatabase}:${postgresUser}:${escapedPgPassword}`npostgres:5432:${commerceDatabase}:${postgresUser}:${escapedPgPassword}`npostgres:5432:postgres:${postgresUser}:${escapedPgPassword}`n",
-    [System.Text.UTF8Encoding]::new($false)
-)
 
 if (Test-Path -LiteralPath $cognitoPath -PathType Leaf) {
     Get-Content -LiteralPath $cognitoPath | ForEach-Object {
@@ -81,10 +54,43 @@ if (Test-Path -LiteralPath $cognitoPath -PathType Leaf) {
             }
         }
     }
-    Write-Host "Se importó la configuración local de Amazon Cognito." -ForegroundColor Cyan
-} else {
-    Write-Warning "No existe backend\.env.cognito.generated. La plataforma iniciará, pero el registro y login requieren configurar Cognito en .env."
 }
+
+$environmentValues = @{}
+Get-Content -LiteralPath $environmentPath | ForEach-Object {
+    if ($_ -match '^([^#=]+)=(.*)$') {
+        $environmentValues[$matches[1].Trim()] = $matches[2].Trim()
+    }
+}
+foreach ($required in @("POSTGRES_PASSWORD", "PGADMIN_EMAIL", "PGADMIN_PASSWORD", "AWS_COGNITO_REGION", "AWS_COGNITO_USER_POOL_ID", "AWS_COGNITO_CLIENT_ID")) {
+    if ([string]::IsNullOrWhiteSpace($environmentValues[$required]) -or $environmentValues[$required] -match '^(use-a-|example)|_example$') {
+        throw "Completa $required en .env antes de iniciar. Para recuperar tu equipo, usa la configuracion del respaldo privado; no subas .env a Git."
+    }
+}
+if (-not $PSBoundParameters.ContainsKey('Port') -and $environmentValues['APP_HTTP_PORT']) {
+    $Port = [int]$environmentValues['APP_HTTP_PORT']
+}
+if ($Port -lt 1024 -or $Port -gt 65535) { throw "APP_HTTP_PORT debe estar entre 1024 y 65535." }
+Set-DotEnvValue -Path $environmentPath -Name "APP_HTTP_PORT" -Value $Port
+Set-DotEnvValue -Path $environmentPath -Name "APP_CORS_ALLOWED_ORIGINS" -Value "http://localhost:$Port,http://127.0.0.1:$Port"
+$postgresVolume = if ($environmentValues['SPRINT_POSTGRES_VOLUME']) { $environmentValues['SPRINT_POSTGRES_VOLUME'] } else { 'sprint_clothes_postgres_data' }
+if ($postgresVolume -notmatch '^[a-zA-Z0-9][a-zA-Z0-9_.-]+$') { throw "Nombre de volumen PostgreSQL no valido." }
+docker volume inspect $postgresVolume *> $null
+if ($LASTEXITCODE -ne 0) {
+    docker volume create $postgresVolume | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "No se pudo crear el volumen persistente de PostgreSQL." }
+}
+$identityDatabase = if ($environmentValues["IDENTITY_DATABASE"]) { $environmentValues["IDENTITY_DATABASE"] } else { "sprint_identity" }
+$commerceDatabase = if ($environmentValues["COMMERCE_DATABASE"]) { $environmentValues["COMMERCE_DATABASE"] } else { "sprint_commerce" }
+$postgresUser = if ($environmentValues["POSTGRES_USER"]) { $environmentValues["POSTGRES_USER"] } else { "sprint_app" }
+$postgresPassword = $environmentValues["POSTGRES_PASSWORD"]
+$escapedPgPassword = $postgresPassword.Replace('\', '\\').Replace(':', '\:')
+[System.IO.Directory]::CreateDirectory($pgAdminDirectory) | Out-Null
+[System.IO.File]::WriteAllText(
+    $pgPassPath,
+    "postgres:5432:${identityDatabase}:${postgresUser}:${escapedPgPassword}`npostgres:5432:${commerceDatabase}:${postgresUser}:${escapedPgPassword}`npostgres:5432:postgres:${postgresUser}:${escapedPgPassword}`n",
+    [System.Text.UTF8Encoding]::new($false)
+)
 
 Push-Location $repositoryRoot
 try {

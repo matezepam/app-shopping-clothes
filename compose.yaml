@@ -112,6 +112,12 @@ services:
         condition: service_completed_successfully
     expose:
       - "8080"
+    # Docker Desktop can inherit an unavailable host DNS resolver. Cognito is
+    # external to the compose network, so keep explicit fallbacks for auth and
+    # JWT key discovery.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     volumes:
       - ./runtime/uploads/products:/app/uploads/products
     networks:
@@ -168,7 +174,7 @@ networks:
 
 volumes:
   sprint_postgres_data:
-    name: sprint_clothes_postgres_data
+    name: ${SPRINT_POSTGRES_VOLUME:-sprint_clothes_postgres_data}
     external: true
   sprint_pgadmin_data:
-    name: sprint_clothes_pgadmin_data
+    name: ${SPRINT_PGADMIN_VOLUME:-sprint_clothes_pgadmin_data}

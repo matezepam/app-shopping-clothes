@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.servlet.resource.NoResourceFoundException
+import software.amazon.awssdk.core.exception.SdkClientException
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CognitoIdentityProviderException
 
 @RestControllerAdvice
@@ -77,6 +78,17 @@ class ApiExceptionHandler {
         }
         logger.warn("Identity provider rejected request requestId={} path={} code={}", request.requestId(), request.requestURI, errorCode)
         return response(status, "IDENTITY_PROVIDER_ERROR", message, request)
+    }
+
+    @ExceptionHandler(SdkClientException::class)
+    fun identityProviderUnavailable(error: SdkClientException, request: HttpServletRequest): ResponseEntity<ApiErrorResponse> {
+        logger.error("Identity provider unavailable requestId={} path={}", request.requestId(), request.requestURI, error)
+        return response(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "IDENTITY_PROVIDER_UNAVAILABLE",
+            "El servicio de inicio de sesión no está disponible temporalmente. Intenta nuevamente.",
+            request
+        )
     }
 
     @ExceptionHandler(Exception::class)
