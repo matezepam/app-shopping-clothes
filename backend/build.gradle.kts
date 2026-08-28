@@ -33,7 +33,7 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
 
-    implementation("software.amazon.awssdk:cognitoidentityprovider:2.54.2")
+    implementation("software.amazon.awssdk:cognitoidentityprovider:2.54.3")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
