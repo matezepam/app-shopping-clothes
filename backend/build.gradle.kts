@@ -1,9 +1,9 @@
 plugins {
-    kotlin("jvm") version "2.4.10"
-    kotlin("plugin.spring") version "2.4.10"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.spring") version "2.4.20"
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
-    kotlin("plugin.jpa") version "2.4.10"
+    kotlin("plugin.jpa") version "2.4.20"
 }
 
 group = "com.sprint"
@@ -33,7 +33,7 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
 
-    implementation("software.amazon.awssdk:cognitoidentityprovider:2.54.2")
+    implementation("software.amazon.awssdk:cognitoidentityprovider:2.54.13")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
